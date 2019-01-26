@@ -1,3 +1,9 @@
+const mainA = require('./mainA');
+const mainB = require('./mainB');
+
 module.exports.loop = function() {
-	console.log('test');
+	if (!Memory.gameStage)
+		mainA.loop();
+	else
+		mainB.loop();
 };
