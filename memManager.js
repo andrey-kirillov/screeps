@@ -1,5 +1,9 @@
 class MemManager {
 	constructor() {
+		if (!Memory.rooms)
+			Memory.rooms = {};
+		if (!Memory.sources)
+			Memory.sources = {};
 	}
 
 	room(name) {
@@ -9,7 +13,16 @@ class MemManager {
 				primaryStore: null,
 				primaryStoreX: null,
 				primaryStoreY: null,
-				primarySpawn: null
+				primarySpawn: null,
+				delivers: [],
+				deliverSpawning: null,
+				spawnersNeedFilling: true,
+				spawnerFillAssigned: null,
+				deliversNeeded: 1,
+				fillSpawnersOrder: [],
+				builders: [],
+				builderSpawning: null,
+				buildersNeeded: 0
 			};
 
 			let room = Game.rooms[name];
@@ -28,6 +41,12 @@ class MemManager {
 			});
 
 			if (roomMem.primarySpawn) {
+				let primarySpawn = Game.structures[roomMem.primarySpawn];
+				if (primarySpawn) {
+					roomMem.baseX = roomMem.primarySpawn.pos.x;
+					roomMem.baseY = roomMem.primarySpawn.pos.y;
+				}
+
 				roomMem.sources = roomMem.sources.sort((a, b) => {
 					return a.pos.findPathTo(roomMem.primarySpawn).length - b.pos.findPathTo(roomMem.primarySpawn).length;
 				});
@@ -56,6 +75,17 @@ class MemManager {
 					roomMem.primaryStoreX = location.x;
 					roomMem.primaryStoreY = location.y;
 				}
+
+				// setup spawner fill order
+				let containerPos = room.getPositionAt(roomMem.primaryStoreX, roomMem.primaryStoreY);
+				roomMem.fillSpawnersOrder = room.find(FIND_MY_STRUCTURES, {filter:structure=>{
+					return (structure.structureType == STRUCTURE_EXTENSION || structure.structureType == STRUCTURE_SPAWN)
+							&& structure.isActive();
+				}}).sort((a, b)=>{
+					return a.pos.getRangeTo(containerPos) - b.pos.getRangeTo(containerPos);
+				}).map(structure=>{
+					return structure.id;
+				});
 			}
 
 			roomMem.sources = roomMem.sources.map(source=>{
@@ -106,5 +136,4 @@ class MemManager {
 	}
 }
 
-const memManager = new MemManager();
-export default memManager;
+module.exports = MemManager;

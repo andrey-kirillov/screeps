@@ -1,5 +1,5 @@
-const mainA = require('./mainA');
-const mainB = require('./mainB');
+const mainA = require('mainA');
+const mainB = require('mainB');
 
 module.exports.loop = function() {
 	if (!Memory.gameStage)

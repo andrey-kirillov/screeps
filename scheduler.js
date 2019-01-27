@@ -1,6 +1,7 @@
 class Scheduler {
-	construct() {
+	constructor(logging=false) {
 		this.simMode = !!Game.rooms.sim;
+		this.logging = logging;
 		if (!Memory.schedule)
 			Memory.schedule = [];
 		this.isReady = this.simMode ? !(Game.time % 10) : Game.cpu.bucket > 400;
@@ -8,7 +9,12 @@ class Scheduler {
 
 	add(id, callback) {
 		if (this.isReady && (!Memory.schedule.length || Memory.schedule[0] == id)) {
+			if (this.logging)
+				console.log('[slow run] - '+id);
+			let perfStart = (new Date()).getTime();
+			Game.logger.set('ScheduleRan', 'true');
 			callback();
+			Game.perfSchedule += ((new Date()).getTime() - perfStart);
 			if (Memory.schedule.length)
 				Memory.schedule.shift();
 		}
@@ -17,5 +23,4 @@ class Scheduler {
 	}
 }
 
-let scheduler = new Scheduler();
-export default scheduler;
+module.exports = Scheduler;

@@ -1,9 +1,9 @@
-const util = require('./lib/util');
-const creepCarry = require('./lib/creepCarry');
-const creepMiner = require('./lib/creepMiner');
-const creepBuilder = require('./lib/creepBuilder');
-const creepUpgrader = require('./lib/creepUpgrader');
-const creepMiningContainerBuilder = require('./lib/creepMiningContainerBuilder');
+const util = require('util');
+const creepCarry = require('creepCarry');
+const creepMiner = require('creepMiner');
+const creepBuilder = require('creepBuilder');
+const creepUpgrader = require('creepUpgrader');
+const creepMiningContainerBuilder = require('creepMiningContainerBuilder');
 
 const structuresAllowed = {};
 structuresAllowed[STRUCTURE_EXTENSION] = [0, 0, 5, 10, 20, 30, 40, 60];

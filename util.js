@@ -1,4 +1,4 @@
-const dirs = [[1, 0], [0, 1], [-1, 0]];
+const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 
 class Spiral {
 	constructor(startX, startY, startRadius=0, boundsX=null, boundsY=null) {

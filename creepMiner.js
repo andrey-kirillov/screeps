@@ -1,4 +1,4 @@
-const util = require('./util');
+const util = require('util');
 
 module.exports = {
 	spawn(spawner, forEnergy, source, desiredWork=5) {

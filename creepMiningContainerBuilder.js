@@ -1,4 +1,4 @@
-const util = require('./util');
+const util = require('util');
 
 module.exports = {
 	spawn(spawner, site, source) {

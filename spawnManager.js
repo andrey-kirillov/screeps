@@ -1,43 +1,45 @@
 const extentionLevelCaps = [50, 50, 50, 50, 50, 50, 50, 100, 200];
 
 class SpawnManager {
-	constructor() {
-		if (!Memory.spawnManager)
-			Memory.spawnManager = {que:[], rooms:{}, isSpawning:[]};
+	constructor(logging=false) {
+		this.types = {};
+		this.logging = logging;
+
+		if (!Memory.spawnManager) {
+			Memory.spawnManager = {que: [], rooms: {}, isSpawning: []};
+
+			this.mem = Memory.spawnManager;
+			this._roomCheck();
+		}
 
 		this.mem = Memory.spawnManager;
 
-		this.types = {};
-
-		this._roomCheck();
-
-		this._processSpawning();
-	}
-
-	_roomCheck() {
 		Game.scheduler.add('spawnManager_roomCheck', ()=>{
-			for (let r in Game.rooms)
-				if (Game.rooms[r].controller && Game.rooms[r].controller.my) {
-					let room = Game.rooms[r];
-					let roomMem = Memory._rooms[r];
-
-					if (!this.mem.rooms[r])
-						this.mem.rooms[r] = {spawners: [], capacity:0};
-
-					this.mem.rooms[r].spawners = room.find(FIND_MY_SPAWNS).map(spawn=>{
-						return spawn.id;
-					});
-
-					if (this.mem.rooms[r].spawners.length)
-						this.mem.rooms[r].capacity = (room.find(FIND_MY_STRUCTURES, {filter: structure=>{
-							return structure.structureType == STRUCTURE_EXTENSION;
-						}}).length * extentionLevelCaps[room.controller.level]) + 300;
-				}
+			this._roomCheck();
 		});
 	}
 
-	_processSpawning() {
-		let roomCache = [];
+	_roomCheck() {
+		for (let r in Game.rooms)
+			if (Game.rooms[r].controller && Game.rooms[r].controller.my) {
+				let room = Game.rooms[r];
+
+				if (!this.mem.rooms[r])
+					this.mem.rooms[r] = {spawners: [], capacity:0};
+
+				this.mem.rooms[r].spawners = room.find(FIND_MY_SPAWNS).map(spawn=>{
+					return spawn.id;
+				});
+
+				if (this.mem.rooms[r].spawners.length)
+					this.mem.rooms[r].capacity = (room.find(FIND_MY_STRUCTURES, {filter: structure=>{
+							return structure.structureType == STRUCTURE_EXTENSION;
+						}}).length * extentionLevelCaps[room.controller.level]) + 300;
+			}
+	}
+
+	processSpawning() {
+		let roomCache = {};
 
 		this.mem.que.sort((a, b)=>{
 			return b.urgency - a.urgency;
@@ -45,8 +47,17 @@ class SpawnManager {
 			// attempt to get a spawn started
 			switch (spawn.status) {
 				case 0:
+					if (!spawn.room) {
+						// todo: code for remote spawning
+						for (let r in Game.rooms) {
+							if (Game.rooms[r].controller && Game.rooms[r].controller.my)
+								spawn.room = r;
+						}
+					}
+
 					let room = spawn.room;
 					let roomMem = this.mem.rooms[room];
+
 					if (!spawn.forceRoom) {
 						// todo: code for remote spawning
 					}
@@ -57,7 +68,7 @@ class SpawnManager {
 						});
 
 						roomCache[room] = {
-							baseEnergy: room.energyAvailable - roomMemSpawners.reduce((aggr, spawner) => {
+							baseEnergy: Game.rooms[room].energyAvailable - roomMem.spawners.reduce((aggr, spawner) => {
 								return aggr + Game.structures[spawner].energy;
 							}, 0),
 							spawnersAvailable: roomMem.spawners.filter(spawner => {
@@ -68,22 +79,23 @@ class SpawnManager {
 
 					for (let n = 0; n < roomCache[room].spawnersAvailable.length; n++) {
 						let spawner = roomCache[room].spawnersAvailable[n];
-						if (spawner.energy + roomCache[room].baseEnergy >= spawn.value) {
+						if (Game.structures[spawner].energy + roomCache[room].baseEnergy >= spawn.value) {
 							n--;
 							roomCache[room].spawnersAvailable.splice(n, 1);
 
 							let res;
-							this.types[spawn.type].call(null, (body, name, opts) => {
-								opts = ops || {};
+							this.types[spawn.type].spawn.call(this.types[spawn.type], (body, name, opts) => {
+								opts = opts || {};
 								opts.memory = opts.memory || {};
 								opts.memory.spawnManagerSpawnID = spawn.spawnID;
-								res = spawner.spawn(body, name, opts);
+								res = Game.structures[spawner].spawnCreep(body, name, opts);
 							}, ...spawn.params);
 
 							if (res === OK) {
 								spawn.spawner = spawner;
 								spawn.status = 1;
 								spawn.failTime = Game.time;
+								roomMem.spawnersNeedFilling = true;
 								break;
 							}
 						}
@@ -93,12 +105,12 @@ class SpawnManager {
 				case 1:
 					if (!Game.structures[spawn.spawner])
 						spawn.status = 0;
-					else if (!spawn.spawner.spawning) {
+					else {
 						let creep = Game.structures[spawn.spawner].room.find(FIND_MY_CREEPS, {filter: creep=>{
-							return creep.memory.spawnManagerSpawnID == spawn.spawnID;
-						}});
+								return creep.memory.spawnManagerSpawnID == spawn.spawnID;
+							}});
 						if (creep.length) {
-							spawn.creepID = creep[0].id;
+							spawn.creepName = creep[0].name;
 							spawn.status = 2;
 						}
 					}
@@ -110,6 +122,8 @@ class SpawnManager {
 		this.mem.que.forEach((spawn, ind)=> {
 			if (spawn.state && spawn.failTime && spawn.failTime < Game.time - 100)
 				this.mem.que.splice(ind, 1);
+			else
+				Game.logger.add(`SpawnQue${ind}`,`${spawn.type} ${spawn.urgency}`);
 		});
 	}
 
@@ -135,7 +149,7 @@ class SpawnManager {
 
 		this.mem.que.splice(ind, 1);
 
-		return spawn.spawnID;
+		return spawn.creepName;
 	}
 
 	spawn({type, value, params, id, room, forceRoom, urgency}) {
@@ -150,9 +164,23 @@ class SpawnManager {
 		params = params || [];
 		forceRoom = typeof forceRoom=='undefined';
 		urgency = urgency || 0;
+		if (!value) {
+			if (room)
+				value = this.getCap(room);
+			else
+				value = this.findHighestCap();
+		}
 
 		this.mem.que.push({type, value, params, id, room, forceRoom, urgency, spawnID, status: 0});
 		return spawnID;
+	}
+
+	findHighestCap() {
+		let highest = 0;
+		for (let r in this.mem.rooms)
+			highest = Math.max(this.mem.rooms[r] ? this.mem.rooms[r].capacity : 0,  highest);
+
+		return highest;
 	}
 
 	registerType(type, func) {
@@ -160,5 +188,4 @@ class SpawnManager {
 	}
 }
 
-const spawnManager = new SpawnManager();
-export default spawnManager;
+module.exports =  SpawnManager;

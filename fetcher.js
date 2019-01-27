@@ -23,7 +23,7 @@ module.exports = {
 
 		spawn(
 			parts,
-			'creep_fetcher_'+util.uid(),
+			'creep_fetcher_'+Game.util.uid(),
 			{memory:{
 					role: 'fetcher',
 					source,
@@ -46,6 +46,8 @@ module.exports = {
 			creep.memory.task = creep.carry[RESOURCE_ENERGY] == creep.carryCapacity ? 'deliver' : 'fetch';
 
 			let roomMem = Game.mem.room(creep.room.name);
+			let sourceMem = Game.mem.source(creep.memory.source);
+
 			creep.memory.dropOff = roomMem.primaryStore;
 			creep.memory.dropOffX = roomMem.primaryStoreX;
 			creep.memory.dropOffY = roomMem.primaryStoreY;
@@ -57,7 +59,7 @@ module.exports = {
 		switch (creep.memory.task) {
 			case 'fetch':
 				if (creep.memory.pickup) {
-					let pickup = Game.structures[creep.memory.pickup];
+					let pickup = Game.getObjectById(creep.memory.pickup);
 					if (creep.withdraw(pickup, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
 						creep.moveTo(pickup);
 					else
@@ -68,10 +70,10 @@ module.exports = {
 						creep.moveTo(creep.memory.pickupX, creep.memory.pickupY);
 					else {
 						let energyPile = creep.pos.findClosestByRange(FIND_DROPPED_RESOURCES, {
-								filter: resource => {
-									return resource.resourceType == RESOURCE_ENERGY;
-								}
-							});
+							filter: resource => {
+								return resource.resourceType == RESOURCE_ENERGY;
+							}
+						});
 						if (energyPile) {
 							creep.pickup(energyPile);
 							creep.memory.task = 'deliver';
@@ -82,7 +84,7 @@ module.exports = {
 
 			case 'deliver':
 				if (creep.memory.dropOff) {
-					let dropOff = Game.structures[creep.memory.dropOff];
+					let dropOff = Game.getObjectById(creep.memory.dropOff);
 					if (creep.transfer(dropOff, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
 						creep.moveTo(dropOff);
 					else

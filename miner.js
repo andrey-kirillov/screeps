@@ -8,7 +8,7 @@ module.exports = {
 
 		spawn(
 			parts,
-			'creep_minerMK2_'+util.uid(),
+			'creep_minerMK2_'+Game.util.uid(),
 			{memory:{
 					role: 'minerMK2',
 					source,
@@ -25,7 +25,7 @@ module.exports = {
 		if (!creep.memory.init) {
 			creep.memory.init = true;
 			creep.memory.task = 'move';
-			let sourceMem = Game.util.source(creep.memory.source);
+			let sourceMem = Game.mem.source(creep.memory.source);
 			creep.memory.posX = sourceMem.containerX;
 			creep.memory.posY = sourceMem.containerY;
 		}
