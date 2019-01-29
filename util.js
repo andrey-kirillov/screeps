@@ -51,65 +51,76 @@ class Spiral {
 
 class Logger {
 	constructor() {
-		this.elements = [];
+		this.rooms = {};
 	}
 
-	log(name, val) {
-		this.elements.push({name,val});
+	__get(room) {
+		if (!this.rooms[room])
+			this.rooms[room] = [];
+		return this.rooms[room];
 	}
 
-	set(name, val) {
-		let el = this.fetch(name);
+	log(name, val, room='global__') {
+		room = this.__get(room);
+
+		room.push({name,val});
+	}
+
+	set(name, val, room='global__') {
+		room = this.__get(room);
+
+		let el = this.fetch(name, room);
 		if (!el)
-			this.log(name, val);
+			this.log(name, val, room);
 		else
 			el.val = val;
 	}
 
-	add(name, val) {
-		let el = this.fetch(name);
+	add(name, val, room='global__') {
+		room = this.__get(room);
+
+		let el = this.fetch(name, room);
 		if (!el)
 			this.log(name, val);
 		else
 			el.val += val;
 	}
 
-	get(name) {
-		return this.fetch(name).val;
+	get(name, room='global__') {
+		room = this.__get(room);
+
+		return this.fetch(name, room).val;
 	}
 
-	fetch(name) {
-		return this.elements.reduce((aggr, el)=>{
+	fetch(name, room='global__') {
+		room = this.__get(room);
+
+		return room.reduce((aggr, el)=>{
 			return el.name == name ? el : aggr;
 		}, {val:undefined});
 	}
 
-	render(room='sim') {
-		let posY = 0.5;
-		this.elements.forEach(el=>{
-			new RoomVisual(room).text(el.name+': '+el.val,0, posY, {color: 'green', font: 0.8, align:'left'});
-			posY+=1;
-		});
+	render() {
+		let globalLogs = this.__get('global__');
+
+		for (let r in Game.rooms) {
+			let posY = 10.5;
+			let logs = this.__get(r);
+			logs = globalLogs.concat(logs);
+
+			logs.forEach(el => {
+				new RoomVisual(r).text(el.name + ': ' + el.val, 0, posY, {color: 'green', font: 0.8, align: 'left'});
+				posY += 1;
+			});
+		}
 	}
 }
 
-const neutralStructures = [STRUCTURE_CONTAINER];
+const dirs8 = [[-1,-1],[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0]];
 
 module.exports = {
 	uid() {
 		return Math.random().toString().substr(2);
-	},
-
-	findStructures(room, structureType=null, allowSites=false) {
-		let isNeutral = structureType && neutralStructures.indexOf(structureType)>-1;
-		let structures = room.find(isNeutral ? FIND_STRUCTURES : FIND_MY_STRUCTURES, {filter:structure=>{
-				return !structureType || structureType == structure.structureType;
-			}});
-		if (allowSites)
-			structures = structures.concat(room.find(isNeutral ? FIND_CONSTRUCTION_SITES : FIND_MY_CONSTRUCTION_SITES, {filter:structure=>{
-					return !structureType || structureType == structure.structureType;
-				}}));
-		return structures;
 	},
 
 	Spiral,
@@ -121,5 +132,18 @@ module.exports = {
 			if(!Game.creeps[i])
 				delete Memory.creeps[i];
 		}
+	},
+
+	safePos(x,y) {
+		return x>=0 && y>=0 && x<50 && y<50;
+	},
+
+	dirs8(x,y,callback) {
+		dirs8.forEach((pos, ind)=>{
+			let nx = x+pos[0];
+			let ny = y+pos[1];
+			if (this.safePos(nx,ny))
+				callback(nx, ny, ind);
+		});
 	}
 };

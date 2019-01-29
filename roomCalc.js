@@ -25,8 +25,11 @@ module.exports = (room)=>{
 	});
 
 	/** dropOff is the center of our room construction, don't do anything if this has not been set */
-	if (roomMem.dropOff.x===null)
+	if (roomMem.dropOff.x===null) {
+		Game.logger.log('CM location error', 'room storage');
 		return;
+	}
+
 	let terrain = room.getTerrain();
 
 	/** source priority setup (once off)*/
@@ -59,10 +62,15 @@ module.exports = (room)=>{
 		let spawnsFound = room.find(FIND_MY_SPAWNS);
 		if (spawnsFound.length) {
 			roomMem.spawns[0].name = spawnsFound[0].name;
-			roomMem.spawns[0].x = spawnsFound[0].x;
-			roomMem.spawns[0].y = spawnsFound[0].y;
+			roomMem.spawns[0].x = spawnsFound[0].pos.x;
+			roomMem.spawns[0].y = spawnsFound[0].pos.y;
 		}
 	}
+	if (!roomMem.spawns.filter(spawn=>{return spawn.x!==null}).length) {
+		Game.logger.log('CM location error', 'no spawns set');
+		return;
+	}
+
 	roomMem.extensions = room.find(FIND_STRUCTURES, {filter:{structureType:STRUCTURE_EXTENSION}}).map(extension=>{
 		return extension.name;
 	});
@@ -74,9 +82,11 @@ module.exports = (room)=>{
 	roomMem.tickIncome = (room.controller && room.controller.my ? 1 : 0.5) * 3000 * roomMem.sources.length / 300;
 	roomMem.sourceTick = roomMem.tickIncome / roomMem.sources.length;
 
+	let roomDropOffPosition = room.getPositionAt(roomMem.dropOff.x, roomMem.dropOff.y);
+
 	/** Sources */
-	for (let s in roomMem.sources) {
-		let source = Game.getObjectById(roomMem.sources[s]);
+	roomMem.sources.forEach(s=>{
+		let source = Game.getObjectById(s);
 		let sourceMem = Game.mem.source(source.id);
 
 		/** Initialisation */
@@ -92,33 +102,48 @@ module.exports = (room)=>{
 		if (!sourceMem.sourceAccess.length) {
 			let groups = [];
 			let ind = 0;
-			Game.util.dirs8(source.pos.x, source.pos.y, (x, y) => {
-				if (terrian.get(x, y) !== TERRAIN_MASK_WALL)
-					sourceMem.sourceAccess.push({x, y, ind});
-				ind++;
+			sourceMem.sourceAccess = [];
+			Game.util.dirs8(source.pos.x, source.pos.y, (x, y, i) => {
+				if (terrain.get(x, y) !== TERRAIN_MASK_WALL)
+					sourceMem.sourceAccess.push({
+						x,
+						y,
+						ind: i,
+						d: roomDropOffPosition.findPathTo(x, y).length,
+						ai: ind++
+					});
 			});
-			ind = null;
+			ind = 0;
 			let group = null;
+
 			sourceMem.sourceAccess.forEach(access=>{
 				if (!ind || access.ind != ind+1) {
-					group = [ind];
+					group = [access];
 					groups.push(group);
 				}
 				else
-					group.push(ind);
-				ind++;
+					group.push(access);
+				ind=access.ind;
 			});
+
 			if (groups.length > 1) {
-				if (groups[0][0] == 0 && groups[groups.length-1][groups[groups.length-1][groups[groups.length-1].length-1]] == 8)
+				if (groups[0][0].ind == 0 && groups[groups.length-1][groups[groups.length-1].length-1].ind == 8)
 					groups[groups.length-1].concat(groups.shift());
-				groups = groups.sort((a, b)=>{
-					return b.length - a.length;
-				});
 			}
+			groups.forEach(group=>{
+				group[0].shortest = group.reduce((aggr, pos)=>{
+					return Math.min(pos.d, aggr);
+				}, 100000)
+			});
+			groups = groups.sort((a, b)=>{
+				return b.length != a.length
+					?b.length - a.length
+					:a[0].d - b[0].d;
+			});
 
 			ind = groups[0].length > 1 ? 1 : 0;
-			sourceMem.dropOff.x = sourceMem.sourceAccess[groups[0][ind]].x;
-			sourceMem.dropOff.y = sourceMem.sourceAccess[groups[0][ind]].y;
+			sourceMem.dropOff.x = sourceMem.sourceAccess[groups[0][ind].ai].x;
+			sourceMem.dropOff.y = sourceMem.sourceAccess[groups[0][ind].ai].y;
 
 			let dropOffPosition = room.getPositionAt(sourceMem.dropOff.x, sourceMem.dropOff.y);
 			sourceMem.sourceAccess.forEach(access=>{
@@ -126,6 +151,8 @@ module.exports = (room)=>{
 			});
 			sourceMem.sourceAccess = sourceMem.sourceAccess.sort((a, b)=>{
 				return a.d - b.d;
+			}).map(access=>{
+				return {x: access.x, y: access.y};
 			});
 		}
 
@@ -140,21 +167,21 @@ module.exports = (room)=>{
 		sourceMem.miners.partsNeeded = 3000 / 300 / 2;
 		let maxCreepParts = creepMiner.getPartsFor(roomMem.spendCap);
 
-		sourceMem.miners.needed = Math.ceil(sourceMem.miners.partsNeeded / maxCreepParts);
+		sourceMem.miners.needed = Math.min(sourceMem.sourceAccess.length, Math.ceil(sourceMem.miners.partsNeeded / maxCreepParts));
 		sourceMem.miners.partsPerCreep = Math.ceil(sourceMem.miners.partsNeeded / sourceMem.miners.needed);
-		sourceMem.miners.value = creepminer.getEnergyFor(sourceMem.miners.partsPerCreep);
+		sourceMem.miners.value = creepMiner.getEnergyFor(sourceMem.miners.partsPerCreep);
 
 		/** fetchers calculations */
 		Game.spawnManager.verifyList(sourceMem.fetchers);
 
-		sourceMem.distance = room.getPositionAt(sourceMem.dropOff.x, sourceMem.dropOff.y).findPathTo(roomMem.dropOff.x, roomMem.dropOff.y).length;
+		sourceMem.distance = room.getPositionAt(sourceMem.dropOff.x, sourceMem.dropOff.y).findPathTo(roomDropOffPosition).length;
 		sourceMem.fetchers.partsNeeded = 3000 / 300 * sourceMem.distance * 2 / 50;
 		maxCreepParts = creepFetcher.getPartsFor(roomMem.spendCap, false);
 
 		sourceMem.fetchers.needed = Math.ceil(sourceMem.fetchers.partsNeeded / maxCreepParts);
 		sourceMem.fetchers.partsPerCreep = Math.ceil(sourceMem.fetchers.partsNeeded / sourceMem.fetchers.needed);
 		sourceMem.fetchers.value = creepFetcher.getEnergyFor(sourceMem.fetchers.partsPerCreep, false);
-	}
+	});
 
 
 	/** run construction planner */
@@ -181,10 +208,12 @@ module.exports = (room)=>{
 
 	/** spawnFillers calculations */
 	roomMem.spawnFillers.needed = 0;
-	if (roomMem.spawns[0].id) {
+	if (roomMem.spawns[0].name) {
 		roomMem.spawnFillers.needed = 1;
 		roomMem.spawnFillers.value = roomMem.spendCap;
-		let pos = room.getPositionAt(roomMem.dropOff.x, roomMem.dropOff.y).findPathTo(roomMem.spawns[0].pos.x, roomMem.spawns[0].pos.y)[0];
+
+		let spawnPos = room.getPositionAt(roomMem.spawns[0].x, roomMem.spawns[0].y);
+		let pos = roomDropOffPosition.findPathTo(spawnPos)[0];
 		roomMem.spawnFillers.pos = {x: pos.x, y: pos.y};
 	}
 
@@ -196,7 +225,7 @@ module.exports = (room)=>{
 	roomMem.delivers.needed = 0;
 	if (cmSite) {
 		let constructionSite = Game.getObjectById(cmSite);
-		let distance = constructionSite.findPathTo(roomMem.dropOff.x, roomMem.dropOff.y).length;
+		let distance = constructionSite.findPathTo(roomDropOffPosition).length;
 		roomMem.delivers.partsNeeded = Math.max(1, Math.floor(distance * 2 + (roomMem.builders.needed*3) * roomMem.tickIncome / 50));
 		let maxCreepParts = creepDeliver.getPartsFor(roomMem.spendCap);
 

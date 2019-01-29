@@ -10,47 +10,41 @@ class ConstructionManager {
 		this.logging = logging;
 	}
 
-	planner(r) {
+	planner(room) {
 		if (this.logging)
 			console.log('construction planning ran');
-		let room = Game.rooms[r];
+		let r = room.name;
 		let roomMem = Game.mem.room(r);
-		if (roomMem.primarySpawn.x !== null) {
-			this.mem.rooms[r] = {sites: [], ready:false};
-			let conMem = this.mem.rooms[r];
+		this.mem.rooms[r] = {sites: [], ready:false};
+		let conMem = this.mem.rooms[r];
 
-			/** Main room dropff */
-			if (roomMem.dropOff.x===null) {
-				Game.logger.log('CM location error', 'room storage');
-				return ;
-			}
-			if (!roomMem.dropOff.id) {
-				if (!roomMem.dropOff.spawning)
-					room.createConstructionSite(roomMem.dropOff.x, roomMem.dropOff.y, STRUCTURE_CONTAINER);
-				conMem.sites.push(roomMem.dropOff);
-				conMem.ready = true;
-				return;
-			}
-/*****************  do extensioins now */
-			// // check for extensions
-			// let extensions = room.find(FIND_MY_STRUCTURES, {
-			// 	filter: { structureType: STRUCTURE_EXTENSION }
-			// });
-			// let allowed = this.getAllowed(STRUCTURE_EXTENSION, room);
-			//
-			// if (extensions.length < allowed && typeof roomMem.baseX != 'undefined' && roomMem.baseX!==null) {
-			// 	let existingSites = room.find(FIND_MY_CONSTRUCTION_SITES, {filter:{ structureType: STRUCTURE_EXTENSION }});
-			//
-			// 	let sites = this.getSpiralPos(room.getPositionAt(roomMem.baseX, roomMem.baseY), room, 3, true, allowed - extensions.length - existingSites.length);
-			// 	conMem.sites = sites.concat(existingSites.map(site=>{
-			// 		return site.pos;
-			// 	})).map(site=>{
-			// 		return {x:site.x, y:site.y, type:STRUCTURE_EXTENSION};
-			// 	});
-			// }
-
-			this.prepNextSite(room);
+		/** Main room dropoff */
+		if (!roomMem.dropOff.name) {
+			if (!roomMem.dropOff.spawning)
+				room.createConstructionSite(room.getPositionAt(roomMem.dropOff.x, roomMem.dropOff.y), STRUCTURE_CONTAINER);
+			conMem.sites.push(roomMem.dropOff);
+			conMem.ready = true;
+			return;
 		}
+/*****************  do extensioins now */
+		// // check for extensions
+		// let extensions = room.find(FIND_MY_STRUCTURES, {
+		// 	filter: { structureType: STRUCTURE_EXTENSION }
+		// });
+		// let allowed = this.getAllowed(STRUCTURE_EXTENSION, room);
+		//
+		// if (extensions.length < allowed && typeof roomMem.baseX != 'undefined' && roomMem.baseX!==null) {
+		// 	let existingSites = room.find(FIND_MY_CONSTRUCTION_SITES, {filter:{ structureType: STRUCTURE_EXTENSION }});
+		//
+		// 	let sites = this.getSpiralPos(room.getPositionAt(roomMem.baseX, roomMem.baseY), room, 3, true, allowed - extensions.length - existingSites.length);
+		// 	conMem.sites = sites.concat(existingSites.map(site=>{
+		// 		return site.pos;
+		// 	})).map(site=>{
+		// 		return {x:site.x, y:site.y, type:STRUCTURE_EXTENSION};
+		// 	});
+		// }
+
+		this.prepNextSite(room);
 	}
 
 	prepNextSite(room) {
@@ -101,7 +95,7 @@ class ConstructionManager {
 		this.structureDefCheck(room, conMem.sites[0], conMem.sites[0].type);
 		if (!conMem.sites[0].spawning)
 			return false;
-		return {...conMem.sites[0]};
+		return conMem.sites[0];
 	}
 
 	structureDefCheck(room, def, structureType) {
@@ -129,7 +123,7 @@ class ConstructionManager {
 		if (len==1)
 			return {name:null, x:null, y:null, spawning:false};
 		let a = [];
-		for (let n=0;n<l;n++)
+		for (let n=0;n<len;n++)
 			a.push({name:null, x:null, y:null, spawning:false});
 		return a;
 	}

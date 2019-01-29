@@ -5,23 +5,39 @@ const Uber = require('uber');
 const util = require('util');
 const ConstructionManager = require('constructionManager');
 
+const creepGofer = require('creepGofer');
+
 const run = require('run');
 
-module.exports = ()=>{
+module.exports.loop = ()=>{
 	Game.perfStart = (new Date()).getTime();
 	Game.logger = new util.Logger();
 	Game.logger.log('cpu', 0);
 	Game.logger.log('cpuAvg', 0);
 
-	let memCmd = Memory.cmd.split(';');
+	let memCmd = (Memory.cmd || '').split(';');
 	if (!memCmd.length)
 		memCmd[0] = '';
+	Memory.cmd = '';
 
 	let execOnce = 'notYetUsed';
 	if (execOnce != Memory.execOnce) {
 		// do something
 	}
 	Memory.execOnce = execOnce;
+
+	if (memCmd[0] == 'help') {
+		console.log('{{example cmd}} Memory.cmd = "dbg;scheduler;1"');
+		console.log('');
+		console.log('spawnClear');
+		console.log('memClear');
+		console.log('memLog');
+		console.log('dbg: module, state');
+		console.log('setRoomStore: room, x, y');
+		console.log('setRoomSpawn: room, x, y, ind');
+		console.log('setRoomExtensionPath: room, ind, [...path]');
+		console.log('deleteRoomExtensionPath: room, ind');
+	}
 
 	// reset spawning
 	if (false || memCmd[0] == 'spawnClear') {
@@ -42,21 +58,14 @@ module.exports = ()=>{
 
 	Game.mem = new MemManager();
 
-	// clear memory
-	if (false || memCmd[0] == 'memClear')
-		Game.mem.clear();
-
-	// log out memory
-	if (false || memCmd[0] == 'memLog')
-		Game.mem.log();
-
 	if (!Memory.dbg)
 		Memory.dbg = {};
 
 	let debuggingDefaults = {
-		scheduler: 0,
-		spawn: 1,
+		scheduler: 1,
+		spawn: 2,
 		uber: 1,
+		creeps: 1,
 		construction: 1
 	};
 
@@ -84,6 +93,25 @@ module.exports = ()=>{
 	Game.mem.register('rooms', {});
 	Game.mem.register('sources', {});
 
+	Game.spawnManager.registerType('gofer', creepGofer);
+
+	if (Memory.dbg.creeps) {
+		for (let type in Game.spawnManager.types)
+			Game.logger.log(type, 0);
+		for (let c in Game.creeps) {
+			let creep = Game.creeps[c];
+			Game.logger.add(creep.memory.role, 1, creep.room);
+		}
+	}
+
+	// clear memory
+	if (false || memCmd[0] == 'memClear')
+		Game.mem.clear();
+
+	// log out memory
+	if (false || memCmd[0] == 'memLog')
+		Game.mem.log();
+
 	let roomMem, sourceMem, ind;
 	switch (memCmd[0]) {
 		case 'setRoomStore':
@@ -105,21 +133,11 @@ module.exports = ()=>{
 			console.log('roomSpawn set:',memCmd[1], memCmd[2], memCmd[3], memCmd[4]);
 			break;
 
-		case 'setMiningContainer':
-			sourceMem = Game.mem.source(memCmd[1]);
-			ind = memCmd[4] || 0;
-			if (!sourceMem.dropOff)
-				sourceMem.dropOff = Game.constructionManager.getStructureDef();
-			sourceMem.dropOff[ind].x = memCmd[2];
-			sourceMem.dropOff[ind].y = memCmd[3];
-			console.log('miningContainer set:',memCmd[1], memCmd[2], memCmd[3], memCmd[4]);
-			break;
-
 		case 'setRoomExtensionPath':
 			roomMem = Game.mem.room(memCmd[1]);
 			if (!roomMem.extensionPaths)
 				roomMem.extensionPaths = [];
-			roomMem.extensionPaths.push(memCmd.slice(3));
+			roomMem.extensionPaths[memCmd[2]] = memCmd.slice(3);
 			console.log('roomExtensionPath set at:',memCmd[2], memCmd.slice(3));
 			break;
 
@@ -147,7 +165,7 @@ module.exports = ()=>{
 		Game.cpu.limit = 20;
 
 	let perfEnd = (new Date()).getTime();
-	let cpu = perfEnd - perfStart - Game.perfSchedule;
+	let cpu = perfEnd - Game.perfStart - Game.perfSchedule;
 	Game.logger.set('cpu', cpu + ' / '+ Game.cpu.limit);
 
 	if (!Memory.perf)
