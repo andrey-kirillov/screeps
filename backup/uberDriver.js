@@ -1,5 +1,6 @@
 module.exports = {
-	spawn(spawn, energy, room) {
+	spawn(spawn) {
+		let energy = Game.spawnManager.lastSpawnValue;
 		let moveParts = Math.floor(energy / 50);
 
 		let parts = [];
@@ -11,7 +12,6 @@ module.exports = {
 			'creep_uber_'+Game.util.uid(),
 			{memory:{
 					role: 'uber',
-					room,
 					init: false,
 					moveParts,
 					task: false,
@@ -42,10 +42,12 @@ module.exports = {
 
 			switch (creep.memory.task) {
 				case 'move':
-					if (creep.pos.getRangeTo(passenger))
+					if (creep.pos.getRangeTo(passenger) > 1)
 						creep.moveTo(passenger);
-					else
+					else {
 						creep.memory.task = 'pull';
+						creep.memory.park = false;
+					}
 					break;
 
 				case 'pull':
@@ -56,14 +58,15 @@ module.exports = {
 					}
 
 					let driverRangeTo = creep.pos.getRangeTo(destination) - creep.memory.range;
-					if (!driverRangeTo) {
+					if (!driverRangeTo && !creep.memory.park) {
 						creep.moveTo(passenger.pos.x, passenger.pos.y);
 						creep.pull(passenger);
 						passenger.move(creep);
+						creep.memory.park = true;
 					}
-					else if (driverRangeTo == 1 && passenger.pos.x == destination.pos.x && passenger.pos.y == destination.pos.y) {
+					else if (creep.memory.park || driverRangeTo < 0) {
 						Game.uber.tripFinished(creep.name);
-						this.endTrip();
+						this.endTrip(creep);
 					}
 					else {
 						creep.moveTo(destination);
@@ -79,5 +82,7 @@ module.exports = {
 		creep.memory.passenger = null;
 		creep.memory.destination = null;
 		creep.memory.pos = null;
+		creep.memory.task = 'pull';
+		creep.memory.park = false;
 	}
 };

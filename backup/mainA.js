@@ -9,6 +9,9 @@ const structuresAllowed = {};
 structuresAllowed[STRUCTURE_EXTENSION] = [0, 0, 5, 10, 20, 30, 40, 60];
 
 module.exports.loop = function() {
+	if (!Memory.totalMined)
+		Memory.totalMined = 0;
+
 	let start = (new Date()).getTime();
 	let logger = new util.Logger();
 	logger.log('cpu', 0);
@@ -131,7 +134,7 @@ module.exports.loop = function() {
 						if (sourceMem.carriers.length >= 5 || (sourceCarryLeft <= 0 && (!container || container.store[RESOURCE_ENERGY] < Math.min(5000, room.controller.level * 700)))) {
 							roomLevel = 4;
 
-							let currentExtensions = util.findStructures(room, STRUCTURE_EXTENSION, true).length;
+							let currentExtensions = util.findStructures(room, STRUCTURE_EXTENSION).length;
 							extensionsToMake = structuresAllowed[STRUCTURE_EXTENSION][room.controller.level] - currentExtensions;
 
 							if (extensionsToMake <= 0) {
@@ -221,9 +224,9 @@ module.exports.loop = function() {
 			}
 			else {
 				let energyFull = primarySpawn.energy == primarySpawn.energyCapacity
-					&& !room.find(FIND_MY_STRUCTURES, {filter:structure=>{
-							return structure.structureType == STRUCTURE_EXTENSION && structure.energy != structure.energyCapacity;
-						}}).length;
+					&& !room.find(FIND_MY_STRUCTURES, {
+						filter: { structureType: STRUCTURE_EXTENSION }
+					}).length;
 
 				// find any secondary sources that still need some work done
 				let sourceID = roomMem.sourcePriority.reduce((aggr, sourceID)=>{

@@ -1,7 +1,7 @@
 const extentionLevelCaps = [50, 50, 50, 50, 50, 50, 50, 100, 200];
 
 class SpawnManager {
-	constructor(logging=0) {
+	constructor(logging=false) {
 		this.types = {};
 		this.logging = logging;
 
@@ -94,14 +94,12 @@ class SpawnManager {
 								opts = opts || {};
 								opts.memory = opts.memory || {};
 								opts.memory.spawnManagerSpawnID = spawn.spawnID;
-								if (this.logging)
-									console.log('spawn now', spawn.spawnID, JSON.stringify(opts.memory));
+								console.log('spawn', spawn.spawnID, JSON.stringify(opts.memory));
 								res = Game.structures[spawner].spawnCreep(body, name, opts);
 							}, ...spawn.params);
 
 							if (res === OK) {
-								if (this.logging>=2)
-									console.log('spawn succeded',spawn.type);
+								console.log('succeded');
 								spawn.spawner = spawner;
 								spawn.status = 1;
 								spawn.failTime = Game.time;
@@ -122,8 +120,6 @@ class SpawnManager {
 						if (creep.length) {
 							spawn.creepName = creep[0].name;
 							spawn.status = 2;
-							if (this.logging>=2)
-								console.log('spawn finished',spawn.creepName);
 						}
 					}
 					break;
@@ -134,13 +130,13 @@ class SpawnManager {
 		this.mem.que.forEach((spawn, ind)=> {
 			if (spawn.status && spawn.failTime && spawn.failTime < Game.time - 60)
 				this.mem.que.splice(ind, 1);
-			else if (this.logging >= 2)
-				Game.logger.log(`SpawnQue${ind}`,`${spawn.type} ${spawn.urgency} - ${spawn.room}`);
+			else
+				Game.logger.log(`SpawnQue${ind}`,`${spawn.type} ${spawn.urgency}`);
 		});
 	}
 
 	getCap(room) {
-		return this.mem.rooms[room].spendCap;
+		return this.mem.rooms[room].capacity;
 	}
 
 	cancel(spawnID) {
@@ -161,9 +157,6 @@ class SpawnManager {
 
 		this.mem.que.splice(ind, 1);
 
-		if (this.logging>=2)
-			console.log('spawn deRegister',spawn.creepName);
-
 		return spawn.creepName;
 	}
 
@@ -176,14 +169,11 @@ class SpawnManager {
 			return present.spawnID;
 
 		if (!this.types[type]) {
-			console.log('invalid spawn type attempted: ',type);
+			console.log('invalide type attempted: ',type);
 			return null;
 		}
 
 		let spawnID = Game.util.uid();
-		if (this.logging>=2)
-			console.log('spawn add',type,spawnID, room, urgency);
-
 		params = params || [];
 		forceRoom = typeof forceRoom=='undefined';
 		urgency = urgency || 0;
@@ -208,23 +198,6 @@ class SpawnManager {
 
 	registerType(type, func) {
 		this.types[type] = func;
-	}
-
-	getSpawningDef(multiple=true) {
-		if (!multiple)
-			return {name:null,spawning:null};
-		else
-			return {list:[],spawning:null,needed:0,primaryParts:0,partsNeeded:0}
-	}
-
-	verifyList(list) {
-		list.primaryParts = 0;
-		list.list = list.list.filter(creep=> {
-			let ret = Game.creeps[creep];
-			if (ret)
-				list.primaryParts += Game.creeps[creep].memory.primaryParts;
-			return ret;
-		});
 	}
 }
 

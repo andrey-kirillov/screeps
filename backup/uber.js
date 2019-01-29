@@ -1,9 +1,9 @@
 class Uber {
-	constructor(logging=0) {
+	constructor(logging=false) {
 		if (!Memory.uber)
 			Memory.uber = {drivers:{}, passengers:{}, driverSpawning:null};
 		this.mem = Memory.uber;
-		this.logging = logging;
+		this.logging = true;
 	}
 
 	registerDriver(creepName) {
@@ -20,7 +20,7 @@ class Uber {
 	}
 
 	requestLift(creepName, destination, range=0) {
-		if (this.logging>=2)
+		if (this.logging)
 			console.log('requestLift', creepName, destination, range);
 		this.mem.passengers[creepName] = {creepName, destination, range, driver:null};
 		Game.creeps[creepName].memory.uber = true;

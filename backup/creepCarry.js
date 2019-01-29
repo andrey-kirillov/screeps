@@ -160,6 +160,8 @@ module.exports = {
 	setCollectJob(creep, isMiner) {
 		creep.memory.task = 'collect';
 
+		creep.memory.workParts = creep.parts.filter(part=>{return part == WORK}).length;
+
 		let foundEnergy = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {filter: resource=>{
 			return resource.resourceType == RESOURCE_ENERGY;
 		}});
@@ -195,6 +197,8 @@ module.exports = {
 		switch (creep.memory.targetCmd) {
 			case 'harvest':
 				result = creep.harvest(target);
+				if (result === OK)
+					Memory.totalMined += creep.memory.workParts*2;
 				break;
 			case 'withdraw':
 				result = creep.withdraw(target, RESOURCE_ENERGY);

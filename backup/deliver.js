@@ -90,13 +90,27 @@ module.exports = {
 								&& Game.structures[structure].energy < Game.structures[structure].energyCapacity;
 						});
 
-						if (!creep.memory.targets) {
+						if (!creep.memory.targets.length) {
 							creep.memory.job = false;
 							roomMem.spawnersNeedFilling = false;
 							roomMem.spawnerFillAssigned = null;
 							return;
 						}
-					}
+						break;
+
+					case 'build':
+						creep.memory.job = creep.memory.jobInit;
+						creep.memory.jobInit = false;
+
+						creep.memory.targets = roomMem.builders;
+						creep.memory.targetInd = 0;
+
+						if (!creep.memory.targets.length) {
+							creep.memory.job = false;
+							return;
+						}
+						break;
+				}
 
 				switch (creep.memory.job) {
 					case 'spawners':
@@ -112,6 +126,23 @@ module.exports = {
 							creep.moveTo(dropOff);
 						else {
 							creep.memory.targets.shift();
+							if (!creep.carry[RESOURCE_ENERGY])
+								creep.memory.task = 'fetch';
+						}
+						break;
+
+					case 'build':
+						let target = creep.memory.targets[creep.memory.targetInd];
+						target = Game.creeps[target];
+						if (!target) {
+							creep.memory.jobInit = 'build';
+							return;
+						}
+
+						if (target.carry[RESOURCE_ENERGY] != target.carryCapacity && creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+							creep.moveTo(target);
+						else {
+							creep.memory.targetInd = (creep.memory.targetInd+1) % creep.memory.targets.length;
 							if (!creep.carry[RESOURCE_ENERGY])
 								creep.memory.task = 'fetch';
 						}

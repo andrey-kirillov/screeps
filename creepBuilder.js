@@ -1,91 +1,74 @@
-const util = require('util');
-
 module.exports = {
-	spawn(spawner, forEnergy, maxWork=28) {
-		let parts = [];
-		let cost = 0;
-		let workParts = 0;
+	getPartsFor(energy) {
+		energy -= 50;
+		let parts = Math.floor(energy / 150);
+		if (energy % 150 >= 100)
+			parts++;
+		return parts;
+	},
 
-		while (workParts < maxWork-4 && cost < forEnergy-550) {
-			parts = parts.concat([MOVE, CARRY, CARRY, WORK, WORK, WORK, WORK]);
-			workParts += 4;
-			cost += 550;
-		}
+	getEnergyFor(parts) {
+		return (Math.floor(parts / 2) * 150) + 50 + ((parts % 2) * 100);
+	},
 
-		if (cost < forEnergy-50) {
-			parts.push(MOVE);
-			cost += 50;
-		}
-		if (cost < forEnergy-50) {
+	spawn(spawn, energy, room) {
+		let workParts = Math.floor((energy - 50) / 150);
+
+		let parts = [MOVE];
+		for (let n=0;n<workParts;n++)
 			parts.push(CARRY);
-			cost += 50;
-		}
-		if (cost < forEnergy-50) {
-			parts.push(CARRY);
-			cost += 50;
-		}
-		while (cost < forEnergy-100 && workParts < maxWork) {
+		for (let n=0;n<workParts;n++)
 			parts.push(WORK);
-			cost += 100;
-			workParts++;
-		}
 
-		parts = parts.slice(0, MAX_CREEP_SIZE);
-
-		return spawner.spawnCreep(
+		spawn(
 			parts,
-			'creep_build_'+util.uid(),
+			'creep_builderMK2_'+Game.util.uid(),
 			{memory:{
-					role: 'builder',
-					mode: false,
-					target: null,
+					role: 'builderMK2',
+					init: false,
 					workParts,
-					sleepTime: 0,
-					empty: false
+					job: null,
+					task: false,
+					uber: false,
+					room
 				}}
 		);
 	},
 
 	behaviour(creep) {
-		if (!creep.id)
-			return;
-
-		if (creep.memory.mode == 'sleep') {
-			if (creep.memory.sleepTime >= Game.time - 10)
-				return;
-			creep.memory.mode = false;
+		if (!creep.memory.init) {
+			creep.memory.init = true;
 		}
 
-		creep.memory.empty = false;
-
-		if (!creep.memory.mode) {
-			let site = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES);
-			if (!site) {
-				creep.suicide();
-				return;
+		if (!creep.memory.job) {
+			let job = Game.constructionManager.getJob(creep.room);
+			if (job) {
+				job = creep.room.lookForAt(LOOK_CONSTRUCTION_SITES, job.x, job.y);
+				if (job) {
+					let fuckedUpInaccesableIDWorkAround = job.toString().match(/#([^\]]+)]/);
+					if (fuckedUpInaccesableIDWorkAround) {
+						creep.memory.job = fuckedUpInaccesableIDWorkAround[1];
+						Game.uber.requestLift(creep.name, fuckedUpInaccesableIDWorkAround[1], 2);
+					}
+				}
 			}
-
-			creep.memory.target = site.id;
-			creep.memory.mode = 'travel';
 		}
 
-		let site = Game.constructionSites[creep.memory.target];
-		if (!site) {
-			creep.memory.mode = false;
-			return;
-		}
+		if (creep.memory.job && !creep.memory.uber) {
+			let job = Game.getObjectById(creep.memory.job);
+			if (!job)
+				this.nextJob(creep);
 
-		if (creep.memory.mode == 'travel') {
-			if (creep.pos.getRangeTo(site) > 1)
-				creep.moveTo(site);
-			else
-				creep.memory.mode = 'build';
+			if (creep.carry[RESOURCE_ENERGY] > creep.memory.workParts*5) {
+				if (creep.build(job) !== OK)
+					this.nextJob(creep);
+			}
 		}
+	},
 
-		if (creep.memory.mode == 'build') {
-			creep.build(site);
-			if (creep.carry[RESOURCE_ENERGY] < creep.carryCapacity/2)
-				creep.memory.empty = true;
-		}
+	nextJob(creep) {
+		creep.memory.job = null;
+		// todo: request job
+		return;
 	}
 };

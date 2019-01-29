@@ -35,10 +35,13 @@ module.exports = {
 		if (!creep.memory.job) {
 			let job = Game.constructionManager.getJob(creep.room);
 			if (job) {
-				job = creep.room.lookForAt(FIND_MY_CONSTRUCTION_SITES, job.x, job.y);
+				job = creep.room.lookForAt(LOOK_CONSTRUCTION_SITES, job.x, job.y);
 				if (job) {
-					creep.memory.job = job.id;
-					Game.uber.requestLift(creep.name, job.id, 2);
+					let fuckedUpInaccesableIDWorkAround = job.toString().match(/#([^\]]+)]/);
+					if (fuckedUpInaccesableIDWorkAround) {
+						creep.memory.job = fuckedUpInaccesableIDWorkAround[1];
+						Game.uber.requestLift(creep.name, fuckedUpInaccesableIDWorkAround[1], 2);
+					}
 				}
 			}
 		}

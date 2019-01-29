@@ -39,7 +39,9 @@ module.exports = {
 				break;
 			case 'mine':
 				let source = Game.getObjectById(creep.memory.source);
-				creep.harvest(source);
+				let res = creep.harvest(source);
+				if (res === OK)
+					Memory.totalMined += creep.memory.workParts*2
 				break;
 		}
 	}
