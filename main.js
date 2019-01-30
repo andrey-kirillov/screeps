@@ -6,6 +6,7 @@ const util = require('util');
 const ConstructionManager = require('constructionManager');
 
 const creepGofer = require('creepGofer');
+const creepMiner = require('creepMiner');
 
 const run = require('run');
 
@@ -14,6 +15,13 @@ module.exports.loop = ()=>{
 	Game.logger = new util.Logger();
 	Game.logger.log('cpu', 0);
 	Game.logger.log('cpuAvg', 0);
+
+	let idLookup = {};
+	Game.getObject = id=>{
+		if (typeof idLookup[id] == 'undefined')
+			idLookup[id] = Game.getObjectById(id);
+		return idLookup[id];
+	};
 
 	let memCmd = (Memory.cmd || '').split(';');
 	if (!memCmd.length)
@@ -62,11 +70,11 @@ module.exports.loop = ()=>{
 		Memory.dbg = {};
 
 	let debuggingDefaults = {
-		scheduler: 1,
+		scheduler: 0,
 		spawn: 2,
 		uber: 1,
 		creeps: 1,
-		construction: 1
+		construction: 0
 	};
 
 	for (let d in debuggingDefaults) {
@@ -84,25 +92,23 @@ module.exports.loop = ()=>{
 	}
 
 	Game.util = util;
-	Game.scheduler = new Scheduler(Memory.dbg.scheduler);
-	Game.spawnManager = new SpawnManager(Memory.dbg.spawn);
-	Game.uber = new Uber(Memory.dbg.uber);
-	Game.constructionManager = new ConstructionManager(Memory.dbg.construction);
+	Game.scheduler = new Scheduler(Memory.dbg.scheduler/1);
+	Game.spawnManager = new SpawnManager(Memory.dbg.spawn/1);
+	Game.uber = new Uber(Memory.dbg.uber/1);
+	Game.constructionManager = new ConstructionManager(Memory.dbg.construction/1);
 
 	Game.mem.register('gamePhase', 0);
 	Game.mem.register('rooms', {});
 	Game.mem.register('sources', {});
 
 	Game.spawnManager.registerType('gofer', creepGofer);
+	Game.spawnManager.registerType('miner', creepMiner);
 
-	if (Memory.dbg.creeps) {
-		for (let type in Game.spawnManager.types)
-			Game.logger.log(type, 0);
+	if (Memory.dbg.creeps/1)
 		for (let c in Game.creeps) {
 			let creep = Game.creeps[c];
-			Game.logger.add(creep.memory.role, 1, creep.room);
+			Game.logger.add(creep.memory.role, 1, creep.room.name);
 		}
-	}
 
 	// clear memory
 	if (false || memCmd[0] == 'memClear')

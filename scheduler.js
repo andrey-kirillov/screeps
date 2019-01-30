@@ -2,8 +2,9 @@ class Scheduler {
 	constructor(logging=0) {
 		this.simMode = !!Game.rooms.sim;
 		this.logging = logging;
-		if (!Memory.schedule)
-			Memory.schedule = [];
+
+		Game.mem.register('schedule', []);
+
 		this.isReady = (this.simMode || Game.cpu.bucket > 100) && !(Game.time % 10);
 
 		if (this.isReady) {
@@ -39,6 +40,8 @@ class Scheduler {
 
 			if (Memory.schedule.length)
 				Memory.schedule.shift();
+
+			this.isReady = false;
 		}
 	}
 }

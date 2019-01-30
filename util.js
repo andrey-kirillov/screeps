@@ -77,11 +77,10 @@ class Logger {
 	}
 
 	add(name, val, room='global__') {
-		room = this.__get(room);
-
 		let el = this.fetch(name, room);
+
 		if (!el)
-			this.log(name, val);
+			this.log(name, val, room);
 		else
 			el.val += val;
 	}
@@ -97,7 +96,7 @@ class Logger {
 
 		return room.reduce((aggr, el)=>{
 			return el.name == name ? el : aggr;
-		}, {val:undefined});
+		}, null);
 	}
 
 	render() {

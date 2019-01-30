@@ -5,14 +5,8 @@ class SpawnManager {
 		this.types = {};
 		this.logging = logging;
 
-		if (!Memory.spawnManager) {
-			Memory.spawnManager = {que: [], rooms: {}, isSpawning: []};
-
-			this.mem = Memory.spawnManager;
-			this._roomCheck();
-		}
-
-		this.mem = Memory.spawnManager;
+		Game.mem.register('spawnManager', {que: [], rooms: {}});
+		this.mem = Game.mem.get('spawnManager');
 
 		Game.scheduler.add('spawnManager_roomCheck', ()=>{
 			this._roomCheck();
@@ -42,7 +36,7 @@ class SpawnManager {
 		let roomCache = {};
 
 		this.mem.que.sort((a, b)=>{
-			return b.urgency - a.urgency;
+			return a.urgency - b.urgency;
 		}).forEach((spawn, sInd)=>{
 			// attempt to get a spawn started
 			switch (spawn.status) {
@@ -97,10 +91,10 @@ class SpawnManager {
 								if (this.logging)
 									console.log('spawn now', spawn.spawnID, JSON.stringify(opts.memory));
 								res = Game.structures[spawner].spawnCreep(body, name, opts);
-							}, ...spawn.params);
+							}, spawn, room, ...spawn.params);
 
 							if (res === OK) {
-								if (this.logging>=2)
+								if (this.logging>=3)
 									console.log('spawn succeded',spawn.type);
 								spawn.spawner = spawner;
 								spawn.status = 1;
@@ -122,7 +116,7 @@ class SpawnManager {
 						if (creep.length) {
 							spawn.creepName = creep[0].name;
 							spawn.status = 2;
-							if (this.logging>=2)
+							if (this.logging>=3)
 								console.log('spawn finished',spawn.creepName);
 						}
 					}
@@ -135,7 +129,7 @@ class SpawnManager {
 			if (spawn.status && spawn.failTime && spawn.failTime < Game.time - 60)
 				this.mem.que.splice(ind, 1);
 			else if (this.logging >= 2)
-				Game.logger.log(`SpawnQue${ind}`,`${spawn.type} ${spawn.urgency} - ${spawn.room}`);
+				Game.logger.log(`SpawnQue${ind}`,`${spawn.type} ${spawn.urgency} - ${spawn.room} ${spawn.status}`, spawn.room);
 		});
 	}
 
@@ -156,12 +150,12 @@ class SpawnManager {
 			return null;
 
 		let spawn = this.mem.que[ind];
-		if (spawn.status < 2)
+		if (spawn.status < 2 || (spawn.status == 1 && Game.creeps[spawn.creepName].spawning))
 			return false;
 
 		this.mem.que.splice(ind, 1);
 
-		if (this.logging>=2)
+		if (this.logging>=3)
 			console.log('spawn deRegister',spawn.creepName);
 
 		return spawn.creepName;
@@ -181,7 +175,7 @@ class SpawnManager {
 		}
 
 		let spawnID = Game.util.uid();
-		if (this.logging>=2)
+		if (this.logging)
 			console.log('spawn add',type,spawnID, room, urgency);
 
 		params = params || [];
@@ -210,11 +204,8 @@ class SpawnManager {
 		this.types[type] = func;
 	}
 
-	getSpawningDef(multiple=true) {
-		if (!multiple)
-			return {name:null,spawning:null};
-		else
-			return {list:[],spawning:null,needed:0,primaryParts:0,partsNeeded:0}
+	getSpawningDef(type, urgency=0) {
+		return {list:[],spawning:null,needed:0,primaryParts:0,partsNeeded:0,type,urgency}
 	}
 
 	verifyList(list) {
@@ -225,6 +216,45 @@ class SpawnManager {
 				list.primaryParts += Game.creeps[creep].memory.primaryParts;
 			return ret;
 		});
+	}
+
+	creepValidator(name) {
+		return Game.creeps[name].ticksToLive > 100;
+	}
+
+	manageType(def, roomName, params=[], creepValidator=null) {
+		let roomMem = Game.mem.room(roomName);
+
+		def.list = def.list.filter(name=> {
+			return Game.creeps[name];
+		});
+
+		if (def.spawning) {
+			let status = Game.spawnManager.get(def.spawning);
+			if (status === null)
+				def.spawning = false;
+			else if (status) {
+				def.spawning = false;
+				def.list.push(status);
+			}
+		}
+		else {
+			creepValidator = creepValidator || this.creepValidator;
+			let len = def.list.filter(creepValidator).length;
+
+			if (len < def.needed) {
+				if (this.logging >=3)
+					console.log('Requesting ', def.type);
+				def.spawning = this.spawn({
+					type: def.type,
+					value: def.value || roomMem.spendCap,
+					id: `${def.type}_${roomName}`,
+					room: roomName,
+					params,
+					urgency: def.urgency
+				});
+			}
+		}
 	}
 }
 

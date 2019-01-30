@@ -1,108 +1,158 @@
+let sourceManager;
+
 module.exports = {
-	getPartsFor(energy, hasRoads=false) {
-		if (!hasRoads)
-			return Math.floor(energy / 100);
-
-		let count = Math.floor(energy / 150) * 2;
-		if (energy % 150 >= 100)
-			count++;
-		return count;
-	},
-
-	getEnergyFor(parts, hasRoads=false) {
-		if (!hasRoads)
-			return parts * 100;
-
-		return (Math.ceil(parts / 2) + parts) * 50;
-	},
-
-	spawn(spawn, carryParts, source) {
-		let moveParts = Math.ceil((carryParts+1) / 2);
-
-		let parts = [WORK];
-		for (let n=0;n<carryParts;n++)
-			parts.push(CARRY);
-		for (let n=0;n<moveParts;n++)
-			parts.push(MOVE);
-
+	spawn(spawn, def, roomName) {
 		spawn(
-			parts,
-			'creep_fetcher_'+Game.util.uid(),
+			[WORK, CARRY, MOVE, MOVE],
+			'creep_gofer_'+Game.util.uid(),
 			{memory:{
-					role: 'fetcher',
-					source,
+					role: 'gofer',
+					roomName,
 					init: false,
-					carryParts,
-					task: false,
-					dropOff: null,
-					dropOffX: null,
-					dropOffY: null,
-					pickup: null,
-					pickupX: null,
-					pickupY: null
+					primaryParts: 1,
+					job: false,
+					task: false
 				}}
 		);
 	},
 
-	behaviour(creep) {
+	behaviour(creep, _sourceManager) {
+		if (creep.spawning)
+			return;
+		sourceManager = _sourceManager;
+
+		let roomMem = Game.mem.room(creep.room.name);
+
 		if (!creep.memory.init) {
 			creep.memory.init = true;
-			creep.memory.task = creep.carry[RESOURCE_ENERGY] == creep.carryCapacity ? 'deliver' : 'fetch';
-
-			let roomMem = Game.mem.room(creep.room.name);
-			let sourceMem = Game.mem.source(creep.memory.source);
-
-			creep.memory.dropOff = roomMem.primaryStore;
-			creep.memory.dropOffX = roomMem.primaryStoreX;
-			creep.memory.dropOffY = roomMem.primaryStoreY;
-			creep.memory.pickup = sourceMem.container;
-			creep.memory.pickupX = sourceMem.containerX;
-			creep.memory.pickupY = sourceMem.containerY;
+			this.setTaskHarvest(creep, roomMem);
 		}
 
 		switch (creep.memory.task) {
-			case 'fetch':
-				if (creep.memory.pickup) {
-					let pickup = Game.getObjectById(creep.memory.pickup);
-					if (creep.withdraw(pickup, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-						creep.moveTo(pickup);
-					else
-						creep.memory.task = 'deliver';
-				}
-				else {
-					if (creep.pos.getRangeTo(creep.memory.pickupX, creep.memory.pickupY) > 1)
-						creep.moveTo(creep.memory.pickupX, creep.memory.pickupY);
-					else {
-						let energyPile = creep.pos.findClosestByRange(FIND_DROPPED_RESOURCES, {
-							filter: resource => {
-								return resource.resourceType == RESOURCE_ENERGY;
-							}
-						});
-						if (energyPile) {
-							creep.pickup(energyPile);
-							creep.memory.task = 'deliver';
-						}
-					}
-				}
+			case 'idle':
+				if (!(Game.time % 3) && this.setTaskDeliver(creep, roomMem))
+					this.taskDeliver(creep, roomMem);
+				break;
+
+			case 'await':
+				this.taskAwait(creep, roomMem);
+				break;
+
+			case 'harvest':
+				this.taskHarvest(creep, roomMem);
 				break;
 
 			case 'deliver':
-				if (creep.memory.dropOff) {
-					let dropOff = Game.getObjectById(creep.memory.dropOff);
-					if (creep.transfer(dropOff, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-						creep.moveTo(dropOff);
-					else
-						creep.memory.task = 'fetch';
-				}
-				else {
-					if (!creep.pos.getRangeTo(creep.memory.dropOffX, creep.memory.dropOffY))
-						creep.moveTo(creep.memory.dropOffX, creep.memory.dropOffY);
-					else {
-						creep.drop(RESOURCE_ENERGY);
-						creep.memory.task = 'fetch';
-					}
-				}
+				this.taskDeliver(creep, roomMem);
 				break;
 		}
+	},
+
+	setTaskAwait(creep) {
+		creep.memory.task = 'await';
+	},
+
+	taskAwait(creep, roomMem) {
+		if (!(Game.time % 3)) {
+			if (this.setTaskHarvest(creep, roomMem))
+				this.taskHarvest(creep, roomMem);
+		}
+	},
+
+	// setTaskFetch(creep, roomMem) {
+	// 	let container = roomMem.sources.reduce((aggr, s)=>{
+	// 		let sourceMem = Game.mem.source(s);
+	//
+	// 	}, null);
+	// }
+
+	setTaskHarvest(creep, roomMem) {
+		sourceManager.clearSource(creep);
+		let res = sourceManager.selectSource(creep, roomMem) !== false;
+
+		if (!res) {
+
+
+			this.setTaskAwait(creep);
+		}
+		else
+			creep.memory.task = 'harvest';
+		return res;
+	},
+
+	taskHarvest(creep, roomMem) {
+		if (creep.carry[RESOURCE_ENERGY] == creep.carryCapacity) {
+			if (this.setTaskDeliver(creep, roomMem))
+				this.taskDeliver(creep, roomMem);
+			return;
+		}
+		// dont know how this happens but it does sometimes
+		else if (!creep.memory.source) {
+			this.setTaskHarvest(creep, roomMem);
+			return;
+		}
+
+		if (creep.memory.sourceAccess.x != creep.pos.x || creep.memory.sourceAccess.y != creep.pos.y) {
+			let sourceMem = Game.mem.source(creep.memory.source);
+
+			if (sourceMem.sourceAccess[creep.memory.sourceAccess.ind].booking != creep.name)
+				this.setTaskHarvest(creep, roomMem);
+			else
+				creep.moveTo(creep.memory.sourceAccess.x, creep.memory.sourceAccess.y);
+		}
+		else {
+			let harvestableAmount = creep.memory.primaryParts * 2;
+			let source = Game.getObjectById(creep.memory.source);
+			let res = creep.harvest(source);
+
+			if (res===OK)
+				roomMem.roomMined+=harvestableAmount;
+
+			if (creep.carry[RESOURCE_ENERGY] >= creep.carryCapacity - harvestableAmount) {
+				if(this.setTaskDeliver(creep, roomMem))
+					this.taskDeliver(creep, roomMem);
+			}
+		}
+	},
+
+	findSpawn(roomMem) {
+		return roomMem.spawns.reduce((aggr, spawn)=>{
+			return !aggr && spawn.name && Game.spawns[spawn.name] && Game.spawns[spawn.name].energy < Game.spawns[spawn.name].energyCapacity ? spawn.name : aggr;
+		}, null);
+	},
+
+	setTaskDeliver(creep, roomMem) {
+		sourceManager.clearSource(creep);
+		creep.memory.target = this.findSpawn(roomMem);
+		if (!creep.memory.target)
+			this.setTaskIdle(creep);
+		else
+			creep.memory.task = 'deliver';
+		return creep.memory.task == 'deliver';
+	},
+
+	taskDeliver(creep, roomMem) {
+		if (!creep.carry[RESOURCE_ENERGY]) {
+			if (this.setTaskHarvest(creep, roomMem))
+				this.taskHarvest(creep, roomMem);
+			return;
+		}
+
+		let spawn = Game.spawns[creep.memory.target];
+		if ((!spawn || spawn.energy == spawn.energyCapacity) && !this.setTaskDeliver(creep, roomMem))
+			return;
+
+		let res = creep.transfer(spawn, RESOURCE_ENERGY);
+		if (res === ERR_NOT_IN_RANGE)
+			creep.moveTo(spawn);
+		else if (res === OK)
+			if (creep.carry[RESOURCE_ENERGY] < spawn.energyCapacity - spawn.energy) {
+				if (this.setTaskHarvest(creep, roomMem))
+					this.taskHarvest(creep, roomMem);
+			}
+	},
+
+	setTaskIdle(creep) {
+		creep.memory.task = 'idle';
 	}
 };

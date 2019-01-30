@@ -3,9 +3,8 @@ structuresAllowed[STRUCTURE_EXTENSION] = [0, 0, 5, 10, 20, 30, 40, 60];
 
 class ConstructionManager {
 	constructor(logging=0) {
-		if (!Memory.constructionManager)
-			Memory.constructionManager = {rooms:{}};
-		this.mem = Memory.constructionManager;
+		Game.mem.register('constructionManager', {rooms:{}});
+		this.mem = Game.mem.get('constructionManager');
 
 		this.logging = logging;
 	}
@@ -19,7 +18,7 @@ class ConstructionManager {
 		let conMem = this.mem.rooms[r];
 
 		/** Main room dropoff */
-		if (!roomMem.dropOff.name) {
+		if (!roomMem.dropOff.id) {
 			if (!roomMem.dropOff.spawning)
 				room.createConstructionSite(room.getPositionAt(roomMem.dropOff.x, roomMem.dropOff.y), STRUCTURE_CONTAINER);
 			conMem.sites.push(roomMem.dropOff);
@@ -99,32 +98,37 @@ class ConstructionManager {
 	}
 
 	structureDefCheck(room, def, structureType) {
-		if (def.name && !Game.structures[def.name])
-			def.name = null;
-		if (!def.name && def.x!==null) {
-			let structures = room.lookForAt(LOOK_STRUCTURES, def.x, def.y).filter(structure=>{structure.structureType==structureType});
+		let physProp = structureType == STRUCTURE_SPAWN ? 'name' : 'id';
+		if (def[physProp] && !Game.structures[def[physProp]])
+			def[physProp] = null;
+
+		if (!def[physProp] && def.x!==null) {
+			console.log(JSON.stringify(def),structureType);
+			let structures = room.lookForAt(LOOK_STRUCTURES, def.x, def.y).filter(structure=>{return structure.structureType==structureType});
 			if (structures.length) {
-				def.name = structures.name;
+				console.log(structures[0][physProp],structures[0].id);
+				def[physProp] = structures[0][physProp];
 				def.spawning = false;
 			}
 			else {
-				let sites = room.lookForAt(LOOK_CONSTRUCTION_SITES, def.x, def.y).filter(structure=>{structure.structureType==structureType});
+				let sites = room.lookForAt(LOOK_CONSTRUCTION_SITES, def.x, def.y).filter(structure=>{return structure.structureType==structureType});
+
 				if (sites.length)
 					def.spawning = sites[0].id;
 			}
 		}
-		else if (def.name && def.x===null) {
-			def.x = Game.structures[def.name].pos.x;
-			def.y = Game.structures[def.name].pos.y;
+		else if (def[physProp] && def.x===null) {
+			def.x = Game.structures[def[physProp]].pos.x;
+			def.y = Game.structures[def[physProp]].pos.y;
 		}
 	}
 
 	getStructureDef(len=1) {
 		if (len==1)
-			return {name:null, x:null, y:null, spawning:false};
+			return {x:null, y:null, spawning:false};
 		let a = [];
 		for (let n=0;n<len;n++)
-			a.push({name:null, x:null, y:null, spawning:false});
+			a.push({x:null, y:null, spawning:false});
 		return a;
 	}
 }
