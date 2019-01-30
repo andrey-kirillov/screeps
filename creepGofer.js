@@ -102,7 +102,7 @@ module.exports = {
 		}
 		else {
 			let harvestableAmount = creep.memory.primaryParts * 2;
-			let source = Game.getObjectById(creep.memory.source);
+			let source = Game.getObject(creep.memory.source);
 			let res = creep.harvest(source);
 
 			if (res===OK)

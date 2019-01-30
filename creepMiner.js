@@ -125,7 +125,7 @@ module.exports = {
 	},
 
 	taskHarvest(creep) {
-		let source = Game.getObjectById(creep.memory.source);
+		let source = Game.getObject(creep.memory.source);
 
 		if (!source || !source.energy)
 			return;
@@ -153,7 +153,7 @@ module.exports = {
 		let sourceMem = Game.mem.source(creep.memory.source);
 
 		if (sourceMem.dropOff.id) {
-			let container = Game.getObjectById(sourceMem.dropOff.id);
+			let container = Game.getObject(sourceMem.dropOff.id);
 			if (!container)
 				return;
 
@@ -171,7 +171,7 @@ module.exports = {
 				this.setTaskIdle(creep);
 		}
 		else {
-			let site = Game.getObjectById(sourceMem.dropOff.spawning);
+			let site = Game.getObject(sourceMem.dropOff.spawning);
 			if (!site)
 				return;
 

@@ -54,7 +54,7 @@ module.exports = {
 				}
 
 				if (creep.memory.pickup) {
-					let pickup = Game.getObjectById(creep.memory.pickup);
+					let pickup = Game.getObject(creep.memory.pickup);
 					if (creep.withdraw(pickup, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
 						creep.moveTo(pickup);
 					else

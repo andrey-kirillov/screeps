@@ -63,7 +63,7 @@ module.exports = {
 		switch (creep.memory.task) {
 			case 'fetch':
 				if (creep.memory.pickup) {
-					let pickup = Game.getObjectById(creep.memory.pickup);
+					let pickup = Game.getObject(creep.memory.pickup);
 					if (creep.withdraw(pickup, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
 						creep.moveTo(pickup);
 					else
@@ -88,7 +88,7 @@ module.exports = {
 
 			case 'deliver':
 				if (creep.memory.dropOff) {
-					let dropOff = Game.getObjectById(creep.memory.dropOff);
+					let dropOff = Game.getObject(creep.memory.dropOff);
 					if (creep.transfer(dropOff, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
 						creep.moveTo(dropOff);
 					else

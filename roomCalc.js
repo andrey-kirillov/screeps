@@ -134,7 +134,7 @@ module.exports = (room)=>{
 	/** delivers calculations */
 	roomMem.delivers.needed = 0;
 	if (cmSite) {
-		let constructionSite = Game.getObjectById(cmSite);
+		let constructionSite = Game.getObject(cmSite);
 		let distance = constructionSite.findPathTo(roomDropOffPosition).length;
 		roomMem.delivers.partsNeeded = Math.max(1, Math.floor(distance * 2 + (roomMem.builders.needed*3) * roomMem.minerIncome / 50));
 		let maxCreepParts = creepDeliver.getPartsFor(roomMem.spendCap);

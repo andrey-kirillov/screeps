@@ -55,7 +55,7 @@ module.exports = {
 		}
 
 		if (creep.memory.job && !creep.memory.uber) {
-			let job = Game.getObjectById(creep.memory.job);
+			let job = Game.getObject(creep.memory.job);
 			if (!job)
 				this.nextJob(creep);
 
