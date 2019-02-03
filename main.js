@@ -7,6 +7,11 @@ const ConstructionManager = require('constructionManager');
 
 const creepGofer = require('creepGofer');
 const creepMiner = require('creepMiner');
+const creepSpawnFiller = require('creepSpawnFiller');
+const creepFetcher = require('creepFetcher');
+const creepBuilder = require('creepBuilder');
+const creepDeliver = require('creepDeliver');
+const creepUpgrader = require('creepUpgrader');
 
 const run = require('run');
 
@@ -15,9 +20,13 @@ module.exports.loop = ()=>{
 	Game.logger = new util.Logger();
 	Game.logger.log('cpu', 0);
 	Game.logger.log('cpuAvg', 0);
+	Game.logger.log('last scheduler cpu', 0);
+	Game.schedulerDidRun = false;
 
 	let idLookup = {};
 	Game.getObject = id=>{
+		if (!id)
+			return null;
 		if (typeof idLookup[id] == 'undefined')
 			idLookup[id] = Game.getObjectById(id);
 		return idLookup[id];
@@ -45,23 +54,6 @@ module.exports.loop = ()=>{
 		console.log('setRoomSpawn: room, x, y, ind');
 		console.log('setRoomExtensionPath: room, ind, [...path]');
 		console.log('deleteRoomExtensionPath: room, ind');
-	}
-
-	// reset spawning
-	if (false || memCmd[0] == 'spawnClear') {
-		for (let r in Game.rooms) {
-			let roomMem = Memory.rooms[r];
-			roomMem.builderSpawning = null;
-			roomMem.deliverSpawning = null;
-
-			roomMem.sources.forEach(s=>{
-				let sourceMem = Memory.sources[s];
-				sourceMem.fetcherSpawning = null;
-				sourceMem.minerSpawning = null;
-			})
-		}
-		Memory.spawnManager.que = [];
-		console.log('spawning reset');
 	}
 
 	Game.mem = new MemManager();
@@ -103,6 +95,11 @@ module.exports.loop = ()=>{
 
 	Game.spawnManager.registerType('gofer', creepGofer);
 	Game.spawnManager.registerType('miner', creepMiner);
+	Game.spawnManager.registerType('spawnFiller', creepSpawnFiller);
+	Game.spawnManager.registerType('fetcher', creepFetcher);
+	Game.spawnManager.registerType('builder', creepBuilder);
+	Game.spawnManager.registerType('deliver', creepDeliver);
+	Game.spawnManager.registerType('upgrader', creepUpgrader);
 
 	if (Memory.dbg.creeps/1)
 		for (let c in Game.creeps) {
@@ -117,7 +114,9 @@ module.exports.loop = ()=>{
 	// log out memory
 	if (false || memCmd[0] == 'memLog')
 		Game.mem.log();
-
+// console.log(JSON.stringify(Memory.rooms.sim.controllerDropOff));
+// 	Memory.rooms.sim.controllerDropOff = null;
+// 	console.log('done');
 	let roomMem, sourceMem, ind;
 	switch (memCmd[0]) {
 		case 'setRoomStore':
@@ -127,6 +126,33 @@ module.exports.loop = ()=>{
 			roomMem.dropOff.x = memCmd[2];
 			roomMem.dropOff.y = memCmd[3];
 			console.log('roomStore set:',memCmd[1], memCmd[2], memCmd[3]);
+			break;
+
+		case 'setControllerStore':
+			roomMem = Game.mem.room(memCmd[1]);
+			let ind = memCmd[2];
+			if (!roomMem.controllerDropOff)
+				roomMem.controllerDropOff = [];
+			roomMem.controllerDropOff[ind] = Game.constructionManager.getStructureDef();
+			roomMem.controllerDropOff[ind].x = memCmd[3];
+			roomMem.controllerDropOff[ind].y = memCmd[4];
+			roomMem.controllerDropOff[ind].slots = [];
+			console.log('controllerStore set:',memCmd[1], memCmd[2], memCmd[3], memCmd[4]);
+			break;
+
+		case 'setRoomIdle':
+			roomMem = Game.mem.room(memCmd[1]);
+			roomMem.idlePoint = {x: memCmd[2], y: memCmd[3]};
+			console.log('idlePoint set:',memCmd[1], memCmd[2], memCmd[3]);
+			break;
+
+		case 'clearReplacements':
+			for (let c in Game.creeps) {
+				let creep = Game.creeps[c];
+				if (creep.my && creep.memory.willBeReplaced)
+					delete(creep.memory.willBeReplaced);
+			}
+			console.log('replacments cleared');
 			break;
 
 		case 'setRoomSpawn':
@@ -156,6 +182,11 @@ module.exports.loop = ()=>{
 				roomMem.extensionPaths.splice(ind, 1);
 			console.log('roomExtensionPath deleted:',ind);
 			break;
+
+		case 'clearSpawnQue':
+			Game.spawnManager.clear();
+			console.log('spawnQue cleared');
+			break;
 	}
 
 	// the main code
@@ -171,15 +202,26 @@ module.exports.loop = ()=>{
 		Game.cpu.limit = 20;
 
 	let perfEnd = (new Date()).getTime();
-	let cpu = perfEnd - Game.perfStart - Game.perfSchedule;
+	let cpu = perfEnd - Game.perfStart;
+
 	Game.logger.set('cpu', cpu + ' / '+ Game.cpu.limit);
 
 	if (!Memory.perf)
 		Memory.perf = [];
-	Memory.perf.push(cpu);
-	if (Memory.perf.length > 10)
-		Memory.perf.shift();
 
-	Game.logger.set('cpuAvg', (Memory.perf.reduce((aggr, perf)=>{return aggr + perf},0)/Memory.perf.length).toFixed(1) + ' / '+ Game.cpu.limit);
+	let avgCPU = (Memory.perf.reduce((aggr, perf)=>{return aggr + perf},0)/Memory.perf.length);
+	if (!Game.schedulerDidRun) {
+		Memory.perf.push(cpu);
+		if (Memory.perf.length > 100)
+			Memory.perf.shift();
+	}
+	else
+		Memory.lastSchedulerCost = cpu - avgCPU;
+
+	if (Memory.lastSchedulerCost)
+		Game.logger.set('last scheduler cpu', Memory.lastSchedulerCost.toFixed(1));
+
+	if (Memory.perf.length)
+		Game.logger.set('cpuAvg', avgCPU.toFixed(1) + ' / '+ Game.cpu.limit);
 	Game.logger.render();
 };

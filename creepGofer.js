@@ -42,8 +42,20 @@ module.exports = {
 				this.taskHarvest(creep, roomMem);
 				break;
 
+			case 'fetch':
+				this.taskFetch(creep, roomMem);
+				break;
+
 			case 'deliver':
 				this.taskDeliver(creep, roomMem);
+				break;
+
+			case 'dump':
+				this.taskDump(creep, roomMem);
+				break;
+
+			case 'upgrade':
+				this.taskUpgrade(creep, roomMem);
 				break;
 		}
 	},
@@ -59,21 +71,43 @@ module.exports = {
 		}
 	},
 
-	// setTaskFetch(creep, roomMem) {
-	// 	let container = roomMem.sources.reduce((aggr, s)=>{
-	// 		let sourceMem = Game.mem.source(s);
-	//
-	// 	}, null);
-	// }
+	setTaskFetch(creep, roomMem) {
+		let container = roomMem.sources.reduce((aggr, s)=>{
+			let sourceMem = Game.mem.source(s);
+			if (!sourceMem.dropOff.id)
+				return aggr;
+			let con = Game.getObject(sourceMem.dropOff.id);
+			return con && con.store[RESOURCE_ENERGY] > creep.carryCapacity ? sourceMem.dropOff : aggr;
+		}, null);
+
+		if (container) {
+			creep.memory.task = 'fetch';
+			creep.memory.target = container.id;
+		}
+
+		return container;
+	},
+
+	taskFetch(creep, roomMem) {
+		let container = Game.getObject(creep.memory.target);
+		if (!container || !container.store[RESOURCE_ENERGY])
+			this.setTaskHarvest(creep, roomMem);
+		else {
+			let res = creep.withdraw(container, RESOURCE_ENERGY);
+			if (res === ERR_NOT_IN_RANGE)
+				creep.moveTo(container);
+			else
+				this.setTaskDeliver(creep, roomMem);
+		}
+	},
 
 	setTaskHarvest(creep, roomMem) {
 		sourceManager.clearSource(creep);
 		let res = sourceManager.selectSource(creep, roomMem) !== false;
 
 		if (!res) {
-
-
-			this.setTaskAwait(creep);
+			if (!this.setTaskFetch(creep, roomMem))
+				this.setTaskAwait(creep);
 		}
 		else
 			creep.memory.task = 'harvest';
@@ -123,18 +157,28 @@ module.exports = {
 
 	setTaskDeliver(creep, roomMem) {
 		sourceManager.clearSource(creep);
-		creep.memory.target = this.findSpawn(roomMem);
-		if (!creep.memory.target)
-			this.setTaskIdle(creep);
-		else
-			creep.memory.task = 'deliver';
+
+		if (roomMem.spawnFillers.list.length) {
+			if (roomMem.fetchersCount)
+				this.setTaskUpgrade(creep, roomMem);
+			else
+				creep.memory.task = 'dump';
+		}
+		else {
+			creep.memory.target = this.findSpawn(roomMem);
+
+			if (!creep.memory.target)
+				this.setTaskIdle(creep);
+			else
+				creep.memory.task = 'deliver';
+		}
+
 		return creep.memory.task == 'deliver';
 	},
 
 	taskDeliver(creep, roomMem) {
 		if (!creep.carry[RESOURCE_ENERGY]) {
-			if (this.setTaskHarvest(creep, roomMem))
-				this.taskHarvest(creep, roomMem);
+			this.setTaskHarvest(creep, roomMem);
 			return;
 		}
 
@@ -147,12 +191,52 @@ module.exports = {
 			creep.moveTo(spawn);
 		else if (res === OK)
 			if (creep.carry[RESOURCE_ENERGY] < spawn.energyCapacity - spawn.energy) {
-				if (this.setTaskHarvest(creep, roomMem))
-					this.taskHarvest(creep, roomMem);
+				this.setTaskHarvest(creep, roomMem);
 			}
+	},
+
+	setTaskUpgrade(creep, roomMem) {
+		creep.memory.task = 'upgrade';
+		this.taskUpgrade(creep, roomMem);
+	},
+
+	taskUpgrade(creep, roomMem) {
+		if (!creep.carry[RESOURCE_ENERGY]) {
+			this.setTaskHarvest(creep, roomMem);
+			return;
+		}
+
+		let res = creep.upgradeController(creep.room.controller);
+		if (res === ERR_NOT_IN_RANGE)
+			creep.moveTo(creep.room.controller);
+		else if (!creep.carry[RESOURCE_ENERGY])
+			this.setTaskHarvest(creep, roomMem);
 	},
 
 	setTaskIdle(creep) {
 		creep.memory.task = 'idle';
+	},
+
+	taskDump(creep, roomMem) {
+		let container = roomMem.dropOff.id ? Game.getObject(roomMem.dropOff.id) : null;
+
+		if (container) {
+			let res = creep.transfer(container, RESOURCE_ENERGY);
+
+			if (res === OK)
+				this.setTaskHarvest(creep, roomMem);
+			else if (res === ERR_NOT_IN_RANGE)
+				creep.moveTo(container);
+			else if (res === ERR_FULL)
+				this.setTaskIdle(creep);
+		}
+		else {
+			if (creep.pos.x != roomMem.dropOff.x || creep.pos.y != roomMem.dropOff.y)
+				creep.moveTo(roomMem.dropOff.x/1, roomMem.dropOff.y/1);
+			else {
+				creep.drop(RESOURCE_ENERGY);
+				this.setTaskHarvest(creep, roomMem);
+			}
+		}
 	}
 };

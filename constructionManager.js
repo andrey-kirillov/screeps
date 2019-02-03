@@ -1,6 +1,8 @@
 const structuresAllowed = {};
 structuresAllowed[STRUCTURE_EXTENSION] = [0, 0, 5, 10, 20, 30, 40, 60];
 
+const util = require('util');
+
 class ConstructionManager {
 	constructor(logging=0) {
 		Game.mem.register('constructionManager', {rooms:{}});
@@ -16,32 +18,124 @@ class ConstructionManager {
 		let roomMem = Game.mem.room(r);
 		this.mem.rooms[r] = {sites: [], ready:false};
 		let conMem = this.mem.rooms[r];
+		let dropOffPos = room.getPositionAt(roomMem.dropOff.x/1, roomMem.dropOff.y/1);
 
 		/** Main room dropoff */
 		if (!roomMem.dropOff.id) {
 			if (!roomMem.dropOff.spawning)
 				room.createConstructionSite(room.getPositionAt(roomMem.dropOff.x, roomMem.dropOff.y), STRUCTURE_CONTAINER);
-			conMem.sites.push(roomMem.dropOff);
+			conMem.sites.push({
+				x: roomMem.dropOff.x,
+				y: roomMem.dropOff.y,
+				spawning: false,
+				type: STRUCTURE_CONTAINER
+			});
 			conMem.ready = true;
 			return;
 		}
-/*****************  do extensioins now */
-		// // check for extensions
-		// let extensions = room.find(FIND_MY_STRUCTURES, {
-		// 	filter: { structureType: STRUCTURE_EXTENSION }
-		// });
-		// let allowed = this.getAllowed(STRUCTURE_EXTENSION, room);
-		//
-		// if (extensions.length < allowed && typeof roomMem.baseX != 'undefined' && roomMem.baseX!==null) {
-		// 	let existingSites = room.find(FIND_MY_CONSTRUCTION_SITES, {filter:{ structureType: STRUCTURE_EXTENSION }});
-		//
-		// 	let sites = this.getSpiralPos(room.getPositionAt(roomMem.baseX, roomMem.baseY), room, 3, true, allowed - extensions.length - existingSites.length);
-		// 	conMem.sites = sites.concat(existingSites.map(site=>{
-		// 		return site.pos;
-		// 	})).map(site=>{
-		// 		return {x:site.x, y:site.y, type:STRUCTURE_EXTENSION};
-		// 	});
-		// }
+
+		/** Extensions */
+		let extensions = room.find(FIND_STRUCTURES, {filter:{structureType:STRUCTURE_EXTENSION}});
+		let maxExtensions = structuresAllowed[STRUCTURE_EXTENSION][room.controller.level];
+		let extLeft = maxExtensions - extensions.length;
+
+		if (roomMem.extensionPaths && roomMem.extensionPaths.length && extLeft)
+			for (let p in roomMem.extensionPaths) {
+				let path = roomMem.extensionPaths[p];
+
+				let x = path[0]/1;
+				let y = path[1]/1;
+
+				for (let n=0;n<path[3];n++) {
+					for (let d=0;d<4;d++) {
+						let px = (x/1) + (util.extDirs[path[2]][d][0]/1);
+						let py = (y/1) + (util.extDirs[path[2]][d][1]/1);
+						let r = dropOffPos.getRangeTo(px, py);
+
+						if (r > 2) {
+							let site = this.getStructureDef(1, px/1, py/1);
+							site.type = STRUCTURE_EXTENSION;
+							this.structureDefCheck(room, site, STRUCTURE_EXTENSION);
+							if (!site.id) {
+								if (!site.spawning)
+									room.createConstructionSite(px, py, STRUCTURE_EXTENSION);
+								conMem.sites.push(site);
+								extLeft--;
+							}
+						}
+						if (!extLeft)
+							break;
+					}
+					if (!extLeft)
+						break;
+
+					x += (util.diagDirs[path[2]][0]/1);
+					y += (util.diagDirs[path[2]][1]/1);
+				}
+				if (!extLeft)
+					break;
+			}
+
+		if (conMem.sites.length) {
+			conMem.ready = true;
+			return;
+		}
+
+		/** build source roads */
+		if (room.controller.level >= 2)
+			roomMem.sources.forEach(s=>{
+				let hasRoad = true;
+				let sourceMem = Game.mem.source(s);
+				sourceMem.fetchPath.forEach(point=>{
+					let site = this.getStructureDef(1, point.x/1, point.y/1);
+					site.type = STRUCTURE_ROAD;
+					this.structureDefCheck(room, site, STRUCTURE_ROAD);
+					if (!site.id) {
+						if (!site.spawning)
+							room.createConstructionSite(point.x/1, point.y/1, STRUCTURE_ROAD);
+						conMem.sites.push(site);
+						hasRoad = false;
+					}
+				});
+				sourceMem.hasRoad = hasRoad;
+			});
+
+		if (conMem.sites.length) {
+			conMem.ready = true;
+			return;
+		}
+
+		/** controller container and roads */
+		if (room.controller.level >= 2 && roomMem.controllerDropOff) {
+			let hasRoad = true;
+			roomMem.controllerDropOff.forEach(dropOff=> {
+				dropOff.path.forEach(point => {
+					let site = this.getStructureDef(1, point.x / 1, point.y / 1);
+					site.type = STRUCTURE_ROAD;
+					this.structureDefCheck(room, site, STRUCTURE_ROAD);
+					if (!site.id) {
+						if (!site.spawning)
+							room.createConstructionSite(point.x / 1, point.y / 1, STRUCTURE_ROAD);
+						conMem.sites.push(site);
+						hasRoad = false;
+					}
+				});
+				dropOff.hasRoad = hasRoad;
+
+				this.structureDefCheck(room, dropOff, STRUCTURE_CONTAINER);
+
+				if (!dropOff.id) {
+					if (!dropOff.spawning) {
+						room.createConstructionSite(room.getPositionAt(dropOff.x / 1, dropOff.y / 1), STRUCTURE_CONTAINER);
+						conMem.sites.push(dropOff);
+					}
+				}
+			});
+		}
+		if (conMem.sites.length) {
+			conMem.ready = true;
+			return;
+		}
 
 		this.prepNextSite(room);
 	}
@@ -88,13 +182,14 @@ class ConstructionManager {
 
 	getJob(room) {
 		let conMem = this.mem.rooms[room.name];
-		if (!conMem || !conMem.ready)
+		if (!conMem || !conMem.ready || !conMem.sites.length)
 			return false;
 
 		this.structureDefCheck(room, conMem.sites[0], conMem.sites[0].type);
 		if (!conMem.sites[0].spawning)
-			return false;
-		return conMem.sites[0];
+			conMem.sites.shift();
+
+		return conMem.sites.length ? conMem.sites[0] : null;
 	}
 
 	structureDefCheck(room, def, structureType) {
@@ -103,18 +198,18 @@ class ConstructionManager {
 			def[physProp] = null;
 
 		if (!def[physProp] && def.x!==null) {
-			console.log(JSON.stringify(def),structureType);
-			let structures = room.lookForAt(LOOK_STRUCTURES, def.x, def.y).filter(structure=>{return structure.structureType==structureType});
+			let structures = room.lookForAt(LOOK_STRUCTURES, def.x/1, def.y/1).filter(structure=>{return structure.structureType==structureType});
 			if (structures.length) {
-				console.log(structures[0][physProp],structures[0].id);
 				def[physProp] = structures[0][physProp];
 				def.spawning = false;
 			}
 			else {
-				let sites = room.lookForAt(LOOK_CONSTRUCTION_SITES, def.x, def.y).filter(structure=>{return structure.structureType==structureType});
+				let sites = room.lookForAt(LOOK_CONSTRUCTION_SITES, def.x/1, def.y/1).filter(structure=>{return structure.structureType==structureType});
 
 				if (sites.length)
 					def.spawning = sites[0].id;
+				else
+					def.spawning = false;
 			}
 		}
 		else if (def[physProp] && def.x===null) {
@@ -123,12 +218,12 @@ class ConstructionManager {
 		}
 	}
 
-	getStructureDef(len=1) {
+	getStructureDef(len=1, x=null, y=null) {
 		if (len==1)
-			return {x:null, y:null, spawning:false};
+			return {x, y, spawning:false};
 		let a = [];
 		for (let n=0;n<len;n++)
-			a.push({x:null, y:null, spawning:false});
+			a.push({x, y, spawning:false});
 		return a;
 	}
 }

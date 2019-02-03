@@ -1,3 +1,6 @@
+const commonBehaviours = require('commonBehaviours');
+const util = require('util');
+
 module.exports = {
 	getPartsFor(energy) {
 		energy -= 50;
@@ -7,27 +10,31 @@ module.exports = {
 		return parts;
 	},
 
-	getEnergyFor(parts) {
-		return (Math.floor(parts / 2) * 150) + 50 + ((parts % 2) * 100);
+	getEnergyFor(parts, spendCap) {
+		spendCap -= 50;
+		let spend = (parts * 150) + 50;
+		if (spend > spendCap)
+			spend-= 50;
+		return spend;
 	},
 
-	spawn(spawn, energy, room) {
-		let workParts = Math.floor((energy - 50) / 150);
+	spawn(spawn, def, room) {
+		let primaryParts = Math.floor((def.value - 50) / 150);
 
 		let parts = [MOVE];
-		for (let n=0;n<workParts;n++)
+		for (let n=0;n<primaryParts;n++)
 			parts.push(CARRY);
-		for (let n=0;n<workParts;n++)
+		primaryParts = this.getPartsFor(def.value);
+		for (let n=0;n<primaryParts;n++)
 			parts.push(WORK);
 
 		spawn(
 			parts,
-			'creep_builderMK2_'+Game.util.uid(),
+			'creep_builder_'+Game.util.uid(),
 			{memory:{
-					role: 'builderMK2',
+					role: 'builder',
 					init: false,
-					workParts,
-					job: null,
+					primaryParts,
 					task: false,
 					uber: false,
 					room
@@ -36,39 +43,83 @@ module.exports = {
 	},
 
 	behaviour(creep) {
+		if (creep.spawning)
+			return;
+
+		let roomMem = Game.mem.room(creep.room.name);
+		commonBehaviours.step(creep, roomMem);
+
 		if (!creep.memory.init) {
+			commonBehaviours.init(creep);
 			creep.memory.init = true;
+			if (roomMem.currentSite.spawning)
+				this.setTaskMove(creep, roomMem);
+			else
+				this.setTaskIdle(creep);
 		}
 
-		if (!creep.memory.job) {
-			let job = Game.constructionManager.getJob(creep.room);
-			if (job) {
-				job = creep.room.lookForAt(LOOK_CONSTRUCTION_SITES, job.x, job.y);
-				if (job) {
-					let fuckedUpInaccesableIDWorkAround = job.toString().match(/#([^\]]+)]/);
-					if (fuckedUpInaccesableIDWorkAround) {
-						creep.memory.job = fuckedUpInaccesableIDWorkAround[1];
-						Game.uber.requestLift(creep.name, fuckedUpInaccesableIDWorkAround[1], 2);
-					}
-				}
-			}
+		switch (creep.memory.task) {
+			case 'move':
+				this.taskMove(creep, roomMem);
+				break;
+
+			case 'build':
+				this.taskBuild(creep, roomMem);
+				break;
+
+			case 'idle':
+				this.taskIdle(creep, roomMem);
+				break;
+		}
+	},
+
+	setTaskMove(creep, roomMem) {
+		creep.memory.task = 'move';
+		this.taskMove(creep, roomMem);
+	},
+
+	taskMove(creep, roomMem) {
+		if (!roomMem.currentSite) {
+			this.setTaskIdle(creep);
+			return;
 		}
 
-		if (creep.memory.job && !creep.memory.uber) {
-			let job = Game.getObject(creep.memory.job);
-			if (!job)
-				this.nextJob(creep);
+		if (creep.pos.getRangeTo(roomMem.currentSite.x/1, roomMem.currentSite.y/1) > 3)
+			commonBehaviours.baseMoveTo(creep, roomMem.currentSite.x/1, roomMem.currentSite.y/1);
+		else
+			this.setTaskBuild(creep, roomMem);
+	},
 
-			if (creep.carry[RESOURCE_ENERGY] > creep.memory.workParts*5) {
-				if (creep.build(job) !== OK)
-					this.nextJob(creep);
+	setTaskBuild(creep, roomMem) {
+		creep.memory.task = 'build';
+		this.taskBuild(creep, roomMem);
+	},
+
+	taskBuild(creep, roomMem) {
+		let buildable = creep.memory.primaryParts * 5;
+		let site = roomMem.currentSite && roomMem.currentSite.spawning ? Game.getObject(roomMem.currentSite.spawning) : null;
+
+		if (!site)
+			this.setTaskIdle(creep);
+		else {
+			if ((creep.pos.x == site.pos.x && creep.pos.y == site.pos.y))
+				creep.move(Math.floor(Math.random()*8));
+			else if (creep.carry[RESOURCE_ENERGY] >= buildable) {
+				let res = creep.build(site);
+				if (res === ERR_NOT_IN_RANGE)
+					this.setTaskMove(creep, roomMem);
 			}
 		}
 	},
 
-	nextJob(creep) {
-		creep.memory.job = null;
-		// todo: request job
-		return;
+	setTaskIdle(creep) {
+		creep.memory.task = 'idle';
+	},
+
+	taskIdle(creep, roomMem) {
+		if (!(Game.time % 3) && roomMem.currentSite && roomMem.currentSite.spawning && Game.getObject(roomMem.currentSite.spawning))
+			this.setTaskMove(creep, roomMem);
+		else
+			commonBehaviours.idleRally(creep, roomMem);
 	}
 };

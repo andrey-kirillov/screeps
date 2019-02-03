@@ -67,9 +67,8 @@ class Logger {
 	}
 
 	set(name, val, room='global__') {
-		room = this.__get(room);
-
 		let el = this.fetch(name, room);
+
 		if (!el)
 			this.log(name, val, room);
 		else
@@ -117,6 +116,22 @@ class Logger {
 
 const dirs8 = [[-1,-1],[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0]];
 
+const diagDirs = [
+	[-1,-1],
+	[1,-1],
+	[1,1],
+	[-1,1]
+];
+
+const extDirs = [
+	[[-1,0],[-1,1],[0,-1],[1,-1]],
+	[[0,-1],[-1,-1],[1,0],[1,1]],
+	[[1,0],[1,-1],[0,1],[-1,1]],
+	[[0,1],[1,1],[-1,0],[-1,-1]]
+];
+
+const extensionLevelCaps = [50, 50, 50, 50, 50, 50, 50, 100, 200];
+
 module.exports = {
 	uid() {
 		return Math.random().toString().substr(2);
@@ -144,5 +159,11 @@ module.exports = {
 			if (this.safePos(nx,ny))
 				callback(nx, ny, ind);
 		});
-	}
+	},
+
+	diagDirs,
+
+	extDirs,
+
+	extensionLevelCaps,
 };

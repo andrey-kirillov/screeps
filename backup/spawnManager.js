@@ -1,4 +1,4 @@
-const extentionLevelCaps = [50, 50, 50, 50, 50, 50, 50, 100, 200];
+const extensionLevelCaps = [50, 50, 50, 50, 50, 50, 50, 100, 200];
 
 class SpawnManager {
 	constructor(logging=false) {
@@ -34,7 +34,7 @@ class SpawnManager {
 				if (this.mem.rooms[r].spawners.length)
 					this.mem.rooms[r].capacity = (room.find(FIND_MY_STRUCTURES, {filter: structure=>{
 							return structure.structureType == STRUCTURE_EXTENSION;
-						}}).length * extentionLevelCaps[room.controller.level]) + 300;
+						}}).length * extensionLevelCaps[room.controller.level]) + 300;
 			}
 	}
 

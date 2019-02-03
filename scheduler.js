@@ -31,6 +31,7 @@ class Scheduler {
 			Memory.schedule.push([id,priority]);
 
 		if (this.isReady && Memory.schedule[0][0] == id) {
+			Game.schedulerDidRun = true;
 			if (this.logging)
 				console.log('[scheduler ran] - '+id);
 

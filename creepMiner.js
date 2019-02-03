@@ -1,3 +1,4 @@
+const commonBehaviours = require('commonBehaviours');
 let sourceManager;
 
 module.exports = {
@@ -47,8 +48,10 @@ module.exports = {
 		if (creep.spawning)
 			return;
 		sourceManager = _sourceManager;
+		commonBehaviours.step(creep, Game.mem.room(creep.memory.room));
 
 		if (!creep.memory.init) {
+			commonBehaviours.init(creep);
 			creep.memory.init = true;
 			this.setTaskMove(creep);
 		}
@@ -160,9 +163,7 @@ module.exports = {
 			let res = creep.transfer(container, RESOURCE_ENERGY);
 
 			if (res === OK) {
-				if (this.setTaskAccess(creep))
-					this.taskAccess(creep);
-				else
+				if (!this.setTaskAccess(creep))
 					this.setTaskAwait(creep);
 			}
 			else if (res === ERR_NOT_IN_RANGE)
@@ -181,9 +182,7 @@ module.exports = {
 				let buildableAmount = creep.memory.primaryParts * 5;
 
 				if (creep.carry[RESOURCE_ENERGY] <= buildableAmount) {
-					if (this.setTaskAccess(creep))
-						this.taskAccess(creep);
-					else
+					if (!this.setTaskAccess(creep))
 						this.setTaskAwait(creep);
 				}
 			}

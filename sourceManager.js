@@ -10,7 +10,7 @@ module.exports = {
 		Game.mem.initWithDefaults(sourceMem, {
 			dropOff: Game.constructionManager.getStructureDef(),
 			miners: Game.spawnManager.getSpawningDef('miner', 10),
-			fetchers: Game.spawnManager.getSpawningDef('fetcher', 20),
+			fetchers: Game.spawnManager.getSpawningDef('fetcher', 30),
 			sourceAccess: [],
 			minerTickIncome: 0
 		});
@@ -80,6 +80,23 @@ module.exports = {
 				access.booking = null;
 		});
 
+		if (!sourceMem.fetchPath) {
+			let pathFetch = room.getPositionAt(roomMem.dropOff.x/1, roomMem.dropOff.y/1).findPathTo(sourceMem.dropOff.x/1, sourceMem.dropOff.y/1, {swampCost:1}).slice(0, -1);
+			// let pickup = pathFetch[pathFetch-2];
+			// let dropOff = pathFetch[0];
+			// pathFetch = room.getPositionAt(dropOff.x, dropOff.y).findPathTo(pickup.x, pickup.y);
+			// let pathDeliver = room.getPositionAt(pickup.x, pickup.y).findPathTo(dropOff.x, dropOff.y);
+			// console.log(s, 'pathing for fetchers');
+			// console.log(JSON.stringify(pathFetch));
+			// console.log(JSON.stringify(pathDeliver));
+			// sourceMem.fetchers.pathFetch = pathFetch;
+			// sourceMem.fetchers.pathDeliver = Room.serializePath(pathDeliver);
+			// sourceMem.fetchers.dropOff = dropOff;
+			sourceMem.fetchPath = pathFetch.map(point=>{
+				return {x: point.x, y: point.y};
+			});
+		}
+
 		/** Structure checking */
 		Game.constructionManager.structureDefCheck(room, sourceMem.dropOff, STRUCTURE_CONTAINER);
 		if (!sourceMem.dropOff.id && !sourceMem.dropOff.spawning)
@@ -92,7 +109,7 @@ module.exports = {
 		let maxCreepParts = creepMiner.getPartsFor(roomMem.spendCap);
 
 		sourceMem.miners.needed = Math.min(sourceMem.sourceAccess.length, Math.ceil(sourceMem.miners.partsNeeded / maxCreepParts));
-		sourceMem.miners.partsPerCreep = Math.ceil(sourceMem.miners.partsNeeded / sourceMem.miners.needed);
+		sourceMem.miners.partsPerCreep = Math.min(maxCreepParts, Math.ceil(sourceMem.miners.partsNeeded / sourceMem.miners.needed));
 		sourceMem.miners.value = creepMiner.getEnergyFor(sourceMem.miners.partsPerCreep);
 		sourceMem.miners.movementRate = creepMiner.getMovementRateFor(sourceMem.miners.partsPerCreep);
 		sourceMem.miners.avgTicksToLiveNeeded = (sourceMem.distance * sourceMem.miners.movementRate) + (creepMiner.getTotalPartsFor(sourceMem.miners.partsPerCreep) * 3);
@@ -105,12 +122,12 @@ module.exports = {
 		Game.spawnManager.verifyList(sourceMem.fetchers);
 
 		sourceMem.distance = room.getPositionAt(sourceMem.dropOff.x, sourceMem.dropOff.y).findPathTo(roomDropOffPosition).length;
-		sourceMem.fetchers.partsNeeded = 3000 / 300 * sourceMem.distance * 2 / 50;
-		maxCreepParts = creepFetcher.getPartsFor(roomMem.spendCap, false);
+		sourceMem.fetchers.partsNeeded = sourceMem.dropOff.id ? (sourceMem.minerTickIncome * sourceMem.distance * 2 / 50) : 0;
+		maxCreepParts = creepFetcher.getPartsFor(roomMem.spendCap, sourceMem.hasRoad);
 
 		sourceMem.fetchers.needed = Math.ceil(sourceMem.fetchers.partsNeeded / maxCreepParts);
 		sourceMem.fetchers.partsPerCreep = Math.ceil(sourceMem.fetchers.partsNeeded / sourceMem.fetchers.needed);
-		sourceMem.fetchers.value = creepFetcher.getEnergyFor(sourceMem.fetchers.partsPerCreep, false);
+		sourceMem.fetchers.value = creepFetcher.getEnergyFor(sourceMem.fetchers.partsPerCreep, sourceMem.hasRoad);
 	},
 
 	clearSource(creep, leaveSource=false) {

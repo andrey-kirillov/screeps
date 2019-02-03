@@ -118,6 +118,22 @@ class Logger {
 
 const dirs8 = [[-1,-1],[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0]];
 
+const diagDirs = [
+	[-1,-1],
+	[1,-1],
+	[1,1],
+	[-1,1]
+];
+
+const extDirs = [
+	[[-1,0],[-1,1],[0,-1],[1,-1]],
+	[[0,-1],[-1,-1],[1,0],[1,1]],
+	[[1,0],[1,-1],[0,1],[-1,1]],
+	[[0,1],[1,1],[-1,0],[-1,-1]]
+];
+
+const extensionLevelCaps = [50, 50, 50, 50, 50, 50, 50, 100, 200];
+
 module.exports = {
 	uid() {
 		return Math.random().toString().substr(2);
@@ -145,5 +161,11 @@ module.exports = {
 			if (this.safePos(nx,ny))
 				callback(nx, ny);
 		});
-	}
+	},
+
+	diagDirs,
+
+	extDirs,
+
+	extensionLevelCaps
 };

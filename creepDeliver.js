@@ -1,154 +1,208 @@
+const commonBehaviours = require('commonBehaviours');
+
 module.exports = {
-	getPartsFor(energy) {
-		return Math.floor(energy / 100);
+	getPartsFor(energy, hasRoads = false) {
+		if (!hasRoads)
+			return Math.floor(energy / 100);
+		return (Math.floor(energy / 150) * 2) + ((energy % 150 > 100) ? 1 : 0)
 	},
 
-	getEnergyFor(parts) {
-		return parts * 100;
+	getEnergyFor(parts, hasRoads = false) {
+		if (!hasRoads)
+			return parts * 100;
+		return (Math.floor(parts / 2) * 150) + ((parts % 2) ? 100 : 0);
 	},
 
-	spawn(spawn, energy, room) {
-		let carryParts = this.getPartsFor(energy);
-		let moveParts = Math.ceil((carryParts+1) / 2);
+	spawn(spawn, def, roomName, hasRoads = false) {
+		let primaryParts = this.getPartsFor(def.value, hasRoads);
+		let moveParts = Math.ceil(primaryParts / (hasRoads ? 2 : 1));
 
-		let parts = [WORK];
-		for (let n=0;n<carryParts;n++)
-			parts.push(CARRY);
-		for (let n=0;n<moveParts;n++)
+		let parts = [];
+		for (let n = 0; n < moveParts; n++)
 			parts.push(MOVE);
+		for (let n = 0; n < primaryParts; n++)
+			parts.push(CARRY);
 
 		spawn(
 			parts,
-			'creep_deliver_'+Game.util.uid(),
-			{memory:{
+			'creep_deliver_' + Game.util.uid(),
+			{
+				memory: {
 					role: 'deliver',
-					room,
+					roomName,
 					init: false,
-					carryParts,
-					task: false,
-					job: false,
-					pickup: null,
-					pickupX: null,
-					pickupY: null
-				}}
+					primaryParts,
+					target: null,
+					task: false
+				}
+			}
 		);
 	},
 
 	behaviour(creep) {
+		if (creep.spawning)
+			return;
+
+		let roomMem = Game.mem.room(creep.room.name);
+		this.hasTransferred = false;
+		this.hasFetched = false;
+		commonBehaviours.step(creep, roomMem);
+
 		if (!creep.memory.init) {
+			commonBehaviours.init(creep);
 			creep.memory.init = true;
-
-			let roomMem = Game.mem.room(creep.memory.room);
-			creep.memory.task = creep.carry[RESOURCE_ENERGY] == creep.carryCapacity ? 'deliver' : 'fetch';
-
-			creep.memory.pickup = roomMem.primaryStore;
-			creep.memory.pickupX = roomMem.primaryStoreX;
-			creep.memory.pickupY = roomMem.primaryStoreY;
+			this.setTaskFetch(creep, roomMem);
 		}
 
 		switch (creep.memory.task) {
 			case 'fetch':
-				if (creep.carry[RESOURCE_ENERGY] == creep.carryCapacity) {
-					creep.memory.task = 'deliver';
-					return;
-				}
-
-				if (creep.memory.pickup) {
-					let pickup = Game.getObject(creep.memory.pickup);
-					if (creep.withdraw(pickup, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-						creep.moveTo(pickup);
-					else
-						creep.memory.task = 'deliver';
-				}
-				else {
-					if (creep.pos.getRangeTo(creep.memory.pickupX, creep.memory.pickupY) > 1)
-						creep.moveTo(creep.memory.pickupX, creep.memory.pickupY);
-					else {
-						let energyPile = creep.pos.findClosestByRange(FIND_DROPPED_RESOURCES, {
-							filter: resource => {
-								return resource.resourceType == RESOURCE_ENERGY;
-							}
-						});
-						if (energyPile) {
-							creep.pickup(energyPile);
-							creep.memory.task = 'deliver';
-						}
-					}
-				}
+				this.taskFetch(creep, roomMem);
 				break;
 
-			case 'deliver':
-				let roomMem = Game.mem.room(creep.memory.room);
+			case 'deliverUpgrade':
+				this.taskDeliverUpgrade(creep, roomMem);
+				break;
 
-				switch (creep.memory.jobInit) {
-					case 'spawners':
-						creep.memory.job = creep.memory.jobInit;
-						creep.memory.jobInit = false;
+			case 'deliverBuilder':
+				this.taskDeliverBuilder(creep, roomMem);
+				break;
 
-						creep.memory.targets = roomMem.fillSpawnersOrder.filter(structure => {
-							return Game.structures[structure] && Game.structures[structure].isActive()
-								&& Game.structures[structure].energy < Game.structures[structure].energyCapacity;
-						});
-
-						if (!creep.memory.targets.length) {
-							creep.memory.job = false;
-							roomMem.spawnersNeedFilling = false;
-							roomMem.spawnerFillAssigned = null;
-							return;
-						}
-						break;
-
-					case 'build':
-						creep.memory.job = creep.memory.jobInit;
-						creep.memory.jobInit = false;
-
-						creep.memory.targets = roomMem.builders;
-						creep.memory.targetInd = 0;
-
-						if (!creep.memory.targets.length) {
-							creep.memory.job = false;
-							return;
-						}
-						break;
-				}
-
-				switch (creep.memory.job) {
-					case 'spawners':
-						if (!creep.memory.targets.length) {
-							creep.memory.jobInit = 'spawners';
-							return;
-						}
-
-						let dropOff = Game.structures[creep.memory.targets[0]];
-						let res = creep.transfer(dropOff, RESOURCE_ENERGY);
-
-						if (res === ERR_NOT_IN_RANGE)
-							creep.moveTo(dropOff);
-						else {
-							creep.memory.targets.shift();
-							if (!creep.carry[RESOURCE_ENERGY])
-								creep.memory.task = 'fetch';
-						}
-						break;
-
-					case 'build':
-						let target = creep.memory.targets[creep.memory.targetInd];
-						target = Game.creeps[target];
-						if (!target) {
-							creep.memory.jobInit = 'build';
-							return;
-						}
-
-						if (target.carry[RESOURCE_ENERGY] != target.carryCapacity && creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-							creep.moveTo(target);
-						else {
-							creep.memory.targetInd = (creep.memory.targetInd+1) % creep.memory.targets.length;
-							if (!creep.carry[RESOURCE_ENERGY])
-								creep.memory.task = 'fetch';
-						}
-						break;
-				}
+			case 'idle':
+				this.taskIdle(creep, roomMem);
 				break;
 		}
+	},
+
+	setTaskFetch(creep, roomMem) {
+		creep.memory.task = 'fetch';
+		this.taskFetch(creep, roomMem);
+	},
+
+	taskFetch(creep, roomMem) {
+		let container = roomMem.dropOff.id ? Game.getObject(roomMem.dropOff.id) : null;
+		this.hasFetched = true;
+
+		if (!container) {
+			let energy = creep.room.lookForAt(LOOK_ENERGY, roomMem.dropOff.x/1, roomMem.dropOff.y/1);
+			if (energy.length) {
+				let res = creep.pickup(energy[0]);
+
+				if (res === OK || res === ERR_FULL)
+					this.setTaskDeliver(creep, roomMem);
+				else if (res === ERR_NOT_IN_RANGE)
+					commonBehaviours.baseMoveTo(creep, energy[0].pos.x, energy[0].pos.y);
+			}
+		}
+		else if (container.store[RESOURCE_ENERGY] > roomMem.spendCap) {
+			let res = creep.withdraw(container, RESOURCE_ENERGY);
+
+			if (res === OK || res === ERR_FULL)
+				this.setTaskDeliver(creep, roomMem);
+			else if (res === ERR_NOT_IN_RANGE)
+				commonBehaviours.baseMoveTo(creep, container.pos.x, container.pos.y);
+		}
+	},
+
+	setTaskDeliver(creep, roomMem) {
+		let builder = this.findBuilder(creep, roomMem);
+
+		if (builder) {
+			creep.memory.target = builder.name;
+			creep.memory.task = 'deliverBuilder';
+			if (!this.hasTransferred)
+				this.taskDeliverBuilder(creep, roomMem);
+		}
+		else {
+			let upgrader = this.findUpgradeStore(creep, roomMem);
+			if (upgrader) {
+				creep.memory.target = upgrader;
+				creep.memory.task = 'deliverUpgrade';
+				if (!this.hasTransferred)
+					this.taskDeliverUpgrade(creep, roomMem);
+			}
+			else
+				this.setTaskIdle(creep);
+		}
+	},
+
+	taskDeliverBuilder(creep, roomMem) {
+		if (!this.hasFetched && !creep.carry[RESOURCE_ENERGY])
+			this.setTaskFetch(creep, roomMem);
+
+		let builder = Game.creeps[creep.memory.target];
+
+		if (!builder || builder.memory.task != 'build')
+			this.setTaskIdle(creep);
+		else {
+			let res = creep.transfer(builder, RESOURCE_ENERGY);
+			if (res === OK) {
+				this.hasTransferred = true;
+
+				if ((builder.carryCapacity - builder.carry[RESOURCE_ENERGY]) < creep.carry[RESOURCE_ENERGY])
+					this.setTaskDeliver(creep, roomMem);
+				else
+					this.setTaskFetch(creep, roomMem);
+			}
+			else if (res === ERR_NOT_IN_RANGE)
+				commonBehaviours.baseMoveTo(creep, builder.pos.x, builder.pos.y);
+		}
+	},
+
+	findBuilder(creep, roomMem) {
+		if (!roomMem.currentSite)
+			return null;
+		let builders = roomMem.builders.list.sort((a, b)=>{
+			a = Game.creeps[a];
+			b = Game.creeps[b];
+			return (b.carryCapacity - b.carry[RESOURCE_ENERGY]) - (a.carryCapacity - a.carry[RESOURCE_ENERGY]);
+		});
+
+		let builder = builders.length ? Game.creeps[builders[0]] : null;
+		return (builder && builder.carry[RESOURCE_ENERGY] < builder.carryCapacity) ? builder : null;
+	},
+
+	findUpgradeStore(creep, roomMem) {
+		if (roomMem.currentSite)
+			return null;
+
+		let dropOffs = roomMem.controllerDropOff.filter(dropOff=>{
+			return dropOff.id && Game.getObjectById(dropOff.id);
+		}).sort((a, b)=>{
+			return Game.getObjectById(a.id).store[RESOURCE_ENERGY - Game.getObjectById(b.id).store[RESOURCE_ENERGY]];
+		});
+		if (!dropOffs.length)
+			return null;
+
+		return dropOffs[0].id;
+	},
+
+	taskDeliverUpgrade(creep, roomMem) {
+		if (creep.hasTransferred)
+			return;
+
+		creep.hasTransferred = true;
+		let container = Game.getObjectById(creep.memory.target);
+		if (!container)
+			return this.setTaskDeliver(creep, roomMem);
+
+		let res = creep.transfer(container, RESOURCE_ENERGY);
+
+		if (res === ERR_NOT_IN_RANGE)
+			creep.moveTo(container, {reusePath: 50});
+		else if (res === ERR_NOT_ENOUGH_RESOURCES || container.storeCapacity - container.store[RESOURCE_ENERGY] >= creep.carry[RESOURCE_ENERGY])
+			this.setTaskFetch(creep, roomMem);
+		else
+			this.setTaskDeliver(creep, roomMem);
+	},
+
+	setTaskIdle(creep) {
+		creep.memory.task = 'idle';
+	},
+
+	taskIdle(creep, roomMem) {
+		if (!(Game.time % 3))
+			this.setTaskDeliver(creep, roomMem);
+		else
+			commonBehaviours.idleRally(creep, roomMem);
 	}
 };
