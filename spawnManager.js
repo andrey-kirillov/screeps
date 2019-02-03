@@ -284,7 +284,7 @@ class SpawnManager {
 			if (enableTracer)
 				tracer.setup(this.types[type], type);
 
-			let start = (new Date()).getTime();
+			let start = Game._cpu.getUsed();
 			for (let c in Game.creeps) {
 				let creep = Game.creeps[c];
 				if (creep.my && creep.memory.role == type) {
@@ -295,7 +295,7 @@ class SpawnManager {
 				}
 			}
 
-			let cpu = (new Date()).getTime() - start;
+			let cpu = Game._cpu.getUsed() - start;
 			let avgCPU = (Memory.behaviourTicks[type].reduce((aggr, perf)=>{return aggr + perf},0)/Math.max(1,Memory.behaviourTicks[type].length));
 
 			if (!Game.schedulerDidRun) {

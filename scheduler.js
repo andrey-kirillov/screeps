@@ -1,11 +1,13 @@
 class Scheduler {
 	constructor(logging=0) {
-		this.simMode = !!Game.rooms.sim;
 		this.logging = logging;
 
 		Game.mem.register('schedule', []);
 
-		this.isReady = (this.simMode || Game.cpu.bucket > 100) && !(Game.time % 10);
+		this.isReady = (Game.isSim || Game._cpu.bucket > Memory.targetBucket || !(Game.time % 100)) && !(Game.time % 10);
+		if (this.isReady && !Game.isSim)
+			Memory.targetBucket = Math.min(99000, (Memory.targetBucket/1) + 10);
+
 
 		if (this.isReady) {
 			let sch = Memory.schedule;
@@ -35,9 +37,9 @@ class Scheduler {
 			if (this.logging)
 				console.log('[scheduler ran] - '+id);
 
-			let perfStart = (new Date()).getTime();
+			let perfStart = Game._cpu.getUsed();
 			callback();
-			Game.perfSchedule += ((new Date()).getTime() - perfStart);
+			Game.perfSchedule += Game._cpu.getUsed() - perfStart;
 
 			if (Memory.schedule.length)
 				Memory.schedule.shift();

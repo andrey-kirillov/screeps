@@ -16,7 +16,22 @@ const creepUpgrader = require('creepUpgrader');
 const run = require('run');
 
 module.exports.loop = ()=>{
+	Game.isSim = 2;
 	Game.perfStart = (new Date()).getTime();
+
+	if (!Memory._gcl)
+		Memory._gcl = 1;
+
+	Game._cpu = {
+		limit: Game.isSim ? (20 + Memory._gcl*10) : Game.cpu.limit,
+		bucket: Game.isSim ? 100 : Game.cpu.bucket,
+		gcl: Game.isSim ? Memory._gcl : Game.gcl,
+		getUsed: Game.isSim==2 ? ()=>{
+			return (new Date()).getTime() - Game.perfStart
+		} : Game.cpu.getUsed
+	};
+	Memory.targetBucket = 100;
+
 	Game.logger = new util.Logger();
 	Game.logger.log('cpu', 0);
 	Game.logger.log('cpuAvg', 0);
@@ -197,14 +212,9 @@ module.exports.loop = ()=>{
 
 	util.cleanMem();
 
-	// performance and logging
-	if (!Game.cpu.limit)
-		Game.cpu.limit = 20;
+	let cpu = Game._cpu.getUsed();
 
-	let perfEnd = (new Date()).getTime();
-	let cpu = perfEnd - Game.perfStart;
-
-	Game.logger.set('cpu', cpu + ' / '+ Game.cpu.limit);
+	Game.logger.set('cpu', cpu + ' / '+ Game._cpu.limit);
 
 	if (!Memory.perf)
 		Memory.perf = [];
@@ -222,6 +232,6 @@ module.exports.loop = ()=>{
 		Game.logger.set('last scheduler cpu', Memory.lastSchedulerCost.toFixed(1));
 
 	if (Memory.perf.length)
-		Game.logger.set('cpuAvg', avgCPU.toFixed(1) + ' / '+ Game.cpu.limit);
+		Game.logger.set('cpuAvg', avgCPU.toFixed(1) + ' / '+ Game._cpu.limit);
 	Game.logger.render();
 };
