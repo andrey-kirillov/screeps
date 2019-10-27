@@ -252,6 +252,19 @@ class SpawnManager {
 		}
 	}
 
+	quickSpawn(type, value, room) {
+		let obj = {
+			type,
+			value,
+			id: `${type}_${room}`,
+			room,
+			params:[],
+			replacement: false,
+			urgency: -10000
+		};
+		this.spawn(obj);
+	}
+
 	clear() {
 		for (let r in Game.rooms) {
 			let room = Game.rooms[r];

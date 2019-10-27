@@ -132,6 +132,8 @@ const extDirs = [
 
 const extensionLevelCaps = [50, 50, 50, 50, 50, 50, 50, 100, 200];
 
+const edgeScanStart = [[1,0,1], [0,1,2], [1,49,1], [0,1,2]];
+
 module.exports = {
 	uid() {
 		return Math.random().toString().substr(2);
@@ -163,7 +165,28 @@ module.exports = {
 
 	diagDirs,
 
+	dirs4: [[1, 0], [0, 1], [-1, 0], [0, -1]],
+
 	extDirs,
 
 	extensionLevelCaps,
+
+	edgeScan(dir, callback) {
+		let x = edgeScanStart[dir][0];
+		let y = edgeScanStart[dir][1];
+		for (let n=0;n<48;n++) {
+			callback(x, y);
+			x += this.dirs4[dir][0];
+			y += this.dirs4[dir][1];
+		}
+	},
+
+	getExitTiles(dir, terrain) {
+		let tiles = [];
+		this.edgeScan(dir, (x, y)=>{
+			if (terrain.get(x, y) != TERRAIN_MASK_WALL)
+				tiles.push({x, y});
+		})
+		return tiles;
+	}
 };

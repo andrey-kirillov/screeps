@@ -12,6 +12,7 @@ const creepFetcher = require('creepFetcher');
 const creepBuilder = require('creepBuilder');
 const creepDeliver = require('creepDeliver');
 const creepUpgrader = require('creepUpgrader');
+const creepTest = require('creepTest');
 
 const run = require('run');
 
@@ -116,6 +117,8 @@ module.exports.loop = ()=>{
 	Game.spawnManager.registerType('deliver', creepDeliver);
 	Game.spawnManager.registerType('upgrader', creepUpgrader);
 
+	Game.spawnManager.registerType('test', creepTest);
+
 	if (Memory.dbg.creeps/1)
 		for (let c in Game.creeps) {
 			let creep = Game.creeps[c];
@@ -134,6 +137,11 @@ module.exports.loop = ()=>{
 // 	console.log('done');
 	let roomMem, sourceMem, ind;
 	switch (memCmd[0]) {
+		case 'quickSpawn':
+			Game.spawnManager.quickSpawn(memCmd[2], memCmd[3], memCmd[1]);
+			console.log('quickSpawn:',memCmd[1], memCmd[2], memCmd[3]);
+			break;
+
 		case 'setRoomStore':
 			roomMem = Game.mem.room(memCmd[1]);
 			if (!roomMem.dropOff)

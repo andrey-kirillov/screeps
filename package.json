@@ -1,0 +1,42 @@
+{
+  "name": "screeps2019",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "jest": "^24.9.0"
+  },
+  "scripts": {
+    "test": "jest --watch --verbose false",
+    "test-once": "jest",
+    "deploy": "node compile.js"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "\\.(jpg|jpeg|png|gif|eot|otf|webp|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|ogg|aac|oga)$": "<rootDir>/__mocks__/fileMock.js",
+      "\\.svg$": "<rootDir>/__mocks__stringLoaderMock.js",
+      "\\.(css|scss)$": "identity-obj-proxy"
+    },
+    "verbose": false,
+    "testPathIgnorePatterns": [
+      "<rootDir>/node_modules/"
+    ],
+    "collectCoverageFrom": [
+      "**/*.{js,jsx)",
+      "!**/node_modules/**"
+    ],
+    "testURL": "http://localhost:3000/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devblazer/screeps2019.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/devblazer/screeps2019/issues"
+  },
+  "homepage": "https://github.com/devblazer/screeps2019#readme"
+}

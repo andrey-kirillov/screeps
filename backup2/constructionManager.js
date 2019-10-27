@@ -123,12 +123,13 @@ class ConstructionManager {
 				dropOff.hasRoad = hasRoad;
 
 				this.structureDefCheck(room, dropOff, STRUCTURE_CONTAINER);
+				dropOff.type = STRUCTURE_CONTAINER;
 
 				if (!dropOff.id) {
-					if (!dropOff.spawning) {
+					if (!dropOff.spawning)
 						room.createConstructionSite(room.getPositionAt(dropOff.x / 1, dropOff.y / 1), STRUCTURE_CONTAINER);
+					else
 						conMem.sites.push(dropOff);
-					}
 				}
 			});
 		}

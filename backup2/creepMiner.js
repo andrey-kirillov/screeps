@@ -99,11 +99,13 @@ module.exports = {
 		creep.memory.task = 'await';
 	},
 
-	taskAwait(creep) {
+	taskAwait(creep, roomMem) {
 		if (!(Game.time % 3)) {
 			if (this.setTaskAccess(creep))
 				this.taskAccess(creep);
 		}
+		else
+			commonBehaviours.idleRally(creep, Game.mem.room(creep.room.name));
 	},
 
 	setTaskAccess(creep) {

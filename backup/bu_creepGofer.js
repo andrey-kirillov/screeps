@@ -1,3 +1,4 @@
+const commonBehaviours = require('commonBehaviours');
 let sourceManager;
 
 module.exports = {
@@ -29,13 +30,13 @@ module.exports = {
 		}
 
 		switch (creep.memory.task) {
-			case 'idle':
-				if (!(Game.time % 3) && this.setTaskDeliver(creep, roomMem))
-					this.taskDeliver(creep, roomMem);
-				break;
 
 			case 'await':
 				this.taskAwait(creep, roomMem);
+				break;
+
+			case 'idle':
+				this.taskIdle(creep, roomMem);
 				break;
 
 			case 'harvest':
@@ -215,6 +216,13 @@ module.exports = {
 
 	setTaskIdle(creep) {
 		creep.memory.task = 'idle';
+	},
+
+	taskIdle(creep, roomMem) {
+		if (!(Game.time % 5))
+			this.setTaskDeliver(creep, roomMem);
+		else
+			commonBehaviours.idleRally(creep, roomMem);
 	},
 
 	taskDump(creep, roomMem) {

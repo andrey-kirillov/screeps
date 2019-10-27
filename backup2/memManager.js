@@ -21,10 +21,12 @@ class MemManager {
 		return Memory[name];
 	}
 
-	clear() {
-		this.memList.forEach(item=>{
+	clear(key=null) {
+		this.memList.filter(item=> {
+			return key === null || key == item[0];
+		}).forEach(item=>{
 			this.set(item[0], item[1]);
-		})
+		});
 	}
 
 	log() {

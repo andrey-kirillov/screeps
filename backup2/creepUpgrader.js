@@ -109,10 +109,17 @@ module.exports = {
 
 	taskUpgrade(creep, roomMem) {
 		let upgradable = creep.memory.primaryParts;
-		if (!creep.memory.dropOff)
-			creep.memory.dropOff = creep.pos.findInRange(FIND_STRUCTURES, 1, {filter:structure=>{
-				return structure.structureType == STRUCTURE_CONTAINER;
-			}})[0].id;
+		if (!creep.memory.dropOff) {
+			let dropOffs = creep.pos.findInRange(FIND_STRUCTURES, 1, {
+				filter: structure => {
+					return structure.structureType == STRUCTURE_CONTAINER;
+				}
+			});
+			if (dropOffs.length)
+				creep.memory.dropOff = [0].id;
+			else
+				return;
+		}
 
 		let dropOff = Game.getObjectById(creep.memory.dropOff);
 		if (!dropOff)

@@ -11,10 +11,11 @@ module.exports = ()=>{
 			let roomMem = Game.mem.room(r);
 			if (roomMem.sources) {
 				roomMem.currentSite = Game.constructionManager.getJob(room);
+
 				if (roomMem.matrixS) {
 					roomMem.costMatrix = PathFinder.CostMatrix.deserialize(roomMem.matrixS);
 					for (let c in Game.creeps)
-						if (Game.creeps[c] && Game.creeps[c].my && Game.creeps[c].room.name == r) {
+						if (Game.creeps[c] && Game.creeps[c].my && Game.creeps[c].room.name == r && !roomMem.costMatrix.get(Game.creeps[c].pos.x, Game.creeps[c].pos.y)) {
 							roomMem.costMatrix.set(Game.creeps[c].pos.x, Game.creeps[c].pos.y, 100);
 						}
 				}

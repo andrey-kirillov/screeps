@@ -1,5 +1,6 @@
 const commonBehaviours = require('commonBehaviours');
 const tracer = require('tracer');
+const theTest = require('folder/test');
 
 module.exports = {
 	getPartsFor(energy, hasRoads = false) {
