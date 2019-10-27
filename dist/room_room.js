@@ -1,7 +1,7 @@
 const util = require('util');
+const roomFilters = require('room_roomFilters');
 const roomUtils = require('room_roomUtils');
 const spatialUtils = require('spatialUtils');
-const roomFilters = require('room_roomFilters');
 
 const Mem = require('memory');
 
@@ -14,6 +14,7 @@ class Room {
 		this._filtersMemoize = util.memoize();
 
 		// loop through screeps rooms and setup our instances
+
 		util.forEach(Game.rooms, room=>{
 			rooms.set(room.name, new Room(room.name, true));
 		});
@@ -42,15 +43,15 @@ class Room {
 			this.mem.timeVisibilityChanged = Game.time;
 		}
 
-		if (!this.mem.sources)
-			roomUtils.detectSources(this);
+		// if (!this.mem.sources)
+		// 	roomUtils.detectSources(this);
 	}
 
 	setStorePos(x, y) {
 		if (!spatialUtils.posInBounds(x, y))
 			return false;
 
-		this.mem.roomStorePos = {x, y};
+		this.mem.storePos = {x, y};
 		return true;
 	}
 
@@ -87,8 +88,15 @@ class Room {
 	}
 
 	get owned() {
-		console.log('owned', this._room.name, this._room.controller.my, this._room.controller.level);
 		return this._room.controller.my && this._room.controller.level;
+	}
+
+	get energyDropOff() {
+		if (this.mem.store)
+			return this.mem.store;
+		if (this.mem.spawns)
+			return this.mem.spawns[0];
+		return null;
 	}
 
 	static find(roomName) {
@@ -99,6 +107,7 @@ class Room {
 		return this._filtersMemoize(
 			()=>{
 				let rooms = [...this._rooms.values()];
+
 				if (filter)
 					rooms = rooms.filter(typeof filter == 'string' ? roomFilters[filter] : filter);
 				return rooms;

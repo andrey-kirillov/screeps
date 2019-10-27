@@ -1,5 +1,6 @@
 const Room = require('./room/room');
 const Mem = require('./memory');
+const g = require('./g');
 
 let memCmd;
 
@@ -50,10 +51,14 @@ module.exports = {
 		if (!memCmd.length)
 			memCmd[0] = '';
 		Memory.cmd = '';
+		if (!Memory.temp)
+			Memory.temp = {};
 
 		let execOnce = 'notYetUsed';
-		if (execOnce != Memory.execOnce) {
-			// do something
+		if (Memory.execOnce && execOnce != Memory.execOnce) {
+			Memory.temp.provisional = g.agencies.spawn.requestCheck([[MOVE], 'testCreep'+Math.random()], 1);
+			Memory.temp.id = g.agencies.spawn.requestAdd(Memory.temp.provisional);
+			console.log(Memory.temp.id);
 		}
 		Memory.execOnce = execOnce;
 

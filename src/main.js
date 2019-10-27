@@ -1,7 +1,9 @@
 const Room = require('./room/room');
 const Cmd = require('./cmd');
+const DC = require('./deferredCode');
 const g = require('./g');
-const IntelligenceAgency = require('./agencies/intelligence/intelligenceAgency');
+const util = require('./util');
+//const IntelligenceAgency = require('./agencies/intelligence/intelligenceAgency');
 const SpawnAgency = require('./agencies/spawn/spawnAgency');
 
 module.exports.loop = ()=> {
@@ -12,11 +14,14 @@ module.exports.loop = ()=> {
 	Room.init();
 
 	g.agencies = {
-		intelligence: new IntelligenceAgency(),
+//		intelligence: new IntelligenceAgency(),
 		spawn: new SpawnAgency()
 	};
 
 	Cmd.startup();
 
 	DC.process();
+
+	// shut down
+	g.agencies.spawn.process();
 };

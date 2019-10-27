@@ -6,8 +6,7 @@ class MultiMap {
 		let node = this.store;
 		for (const key of keys) {
 			if (!node.children) {
-				// 使用WeakMap时出错: Invalid value used as weak map key
-				node.children = new Map;
+				node.children = new Map();
 			}
 			if (!node.children.has(key)) {
 				node.children.set(key, {});
@@ -37,7 +36,6 @@ class MultiMap {
 		if (deleteChildNodes) {
 			delete targetNode.children;
 		}
-		// 删除空分支
 		this.autoDeleteEmptyNodes(keys)
 	}
 	autoDeleteEmptyNodes(keys) {

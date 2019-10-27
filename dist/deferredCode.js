@@ -5,8 +5,10 @@ const calcSafeTime = time=>{
 	return 0.5 + time * 2;
 };
 
+const concernLength = 20;
+
 module.exports = {
-	defer: (callback, scope, pushOff=10) => {
+	defer: (callback, scope, pushOff=10, priorityChange=1) => {
 		let deferredList = Memory.deferredCodeList;
 		let deferral = deferredList.reduce((aggr, item) => {
 			return scope.length == item.scope.length && item.scope.reduce((aggr, s, i) => {
@@ -18,7 +20,7 @@ module.exports = {
 			let timeUsed = Game.cpu.getUsed();
 			let result = callback();
 			timeUsed = Game.cpu.getUsed() - timeUsed;
-			deferral = {scope, timeUsed, lastRun: Game.time, pushOff, origPushOff: pushOff, result, callback};
+			deferral = {scope, timeUsed, lastRun: Game.time, pushOff, origPushOff: pushOff, result, callback, priorityChange};
 			deferredList.push(deferral);
 		}
 		else {
@@ -46,7 +48,7 @@ module.exports = {
 				deferral.pushOff = deferral.origPushOff;
 			}
 			else {
-				deferral.pushOff -= 1;
+				deferral.pushOff -= (deferral.priorityChange / Math.max(list.length-concernLength, 1));
 				deferral.lastRun += 1;
 			}
 			delete(deferral.callback);

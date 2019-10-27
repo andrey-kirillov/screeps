@@ -8,11 +8,11 @@ class Mem {
 		this._mem = Memory._Memory[designation];
 	}
 
-	item(key=null, value={}) {
+	item(key=null, value={}, force=false) {
 		if (!key)
 			return this._mem;
 
-		if (!this._mem[key])
+		if (!this._mem[key] || force)
 			this._mem[key] = value;
 
 		return this._mem[key];

@@ -2,6 +2,7 @@ let SpawnAgency;
 let g;
 
 global.OK = 'ok';
+global.ERR_NOT_ENOUGH_ENERGY = 'err_not_enough_energy';
 global.FIND_SOURCES = 'find_sources';
 global.FIND_MY_SPAWNS = 'find_my_sources';
 global.MOVE = 'move';
@@ -62,7 +63,7 @@ const createMockSpawn = (id, roomName, isSpawning=false, isActive=true) => {
 		isActive,
 		isSpawning: isSpawning ? _isSpawning : null,
 		room: global.Game.rooms[roomName],
-		spawnCreep: (name, parts, memory={}) => {
+		spawnCreep: (parts, name, memory={}) => {
 			if (idList[id].isSpawning)
 				return ERR_BUSY;
 
@@ -142,7 +143,7 @@ describe('fresh requests', ()=> {
 		require('../room/room').init();
 
 		const spawnAgency = new SpawnAgency();
-		const task = ['testCreep', [MOVE, MOVE, WORK, CARRY]];
+		const task = [[MOVE, MOVE, WORK, CARRY], 'testCreep'];
 		expect(spawnAgency.requestCheck(task, 1))
 			.toEqual({
 				cost: 250,
@@ -159,7 +160,7 @@ describe('fresh requests', ()=> {
 		require('../room/room').init();
 
 		const spawnAgency = new SpawnAgency();
-		const task = ['testCreep', [MOVE, MOVE, WORK, CARRY]];
+		const task = [[MOVE, MOVE, WORK, CARRY], 'testCreep'];
 		const provisional = spawnAgency.requestCheck(task, 1);
 
 		const id = spawnAgency.requestAdd(provisional);
@@ -188,7 +189,7 @@ describe('fresh requests', ()=> {
 		require('../room/room').init();
 
 		const spawnAgency = new SpawnAgency();
-		const task = ['testCreep', [MOVE, MOVE, WORK, CARRY]];
+		const task = [[MOVE, MOVE, WORK, CARRY], 'testCreep'];
 		const provisional = spawnAgency.requestCheck(task, 1);
 
 		const id = spawnAgency.requestAdd(provisional);
@@ -204,7 +205,7 @@ describe('fresh requests', ()=> {
 		require('../room/room').init();
 
 		const spawnAgency = new SpawnAgency();
-		const task = ['testCreep', [MOVE, MOVE, WORK, CARRY]];
+		const task = [[MOVE, MOVE, WORK, CARRY], 'testCreep'];
 		const provisional = spawnAgency.requestCheck(task, 1);
 
 		const id = spawnAgency.requestAdd(provisional);
@@ -221,7 +222,7 @@ describe('processing basics', ()=> {
 		require('../room/room').init();
 
 		const spawnAgency = new SpawnAgency();
-		const task = ['testCreep', [MOVE, MOVE, WORK, CARRY]];
+		const task = [[MOVE, MOVE, WORK, CARRY], 'testCreep'];
 		const provisional = spawnAgency.requestCheck(task, 1);
 
 		const id = spawnAgency.requestAdd(provisional);
@@ -252,7 +253,7 @@ describe('processing basics', ()=> {
 		require('../room/room').init();
 
 		const spawnAgency = new SpawnAgency();
-		const task = ['testCreep', [MOVE, MOVE, WORK, CARRY]];
+		const task = [[MOVE, MOVE, WORK, CARRY], 'testCreep'];
 		const provisional = spawnAgency.requestCheck(task, 1);
 		const id = spawnAgency.requestAdd(provisional);
 
@@ -318,7 +319,7 @@ describe('processing faults', ()=> {
 
 		expect(spawnAgency.spawns.size).toBe(1);
 
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['testCreep', [MOVE, MOVE, WORK, CARRY]], 1));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'testCreep'], 1));
 		spawnAgency.process();
 
 		delete(idList[spawn.id]);
@@ -335,7 +336,7 @@ describe('processing faults', ()=> {
 
 		expect(spawnAgency.spawns.size).toBe(1);
 
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['testCreep', [MOVE, MOVE, WORK, CARRY]], 1));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'testCreep'], 1));
 		spawnAgency.process();
 		expect(spawnAgency.spawns.get(spawn.id).requests.length).toBe(1);
 		expect(spawnAgency.requests.size).toBe(1);
@@ -355,12 +356,12 @@ describe('processing scenarios', ()=> {
 		const spawnAgency = new SpawnAgency();
 		doDefer = false;
 
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['creep1', [MOVE, MOVE, WORK, CARRY]], 1));
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['creep2', [MOVE, MOVE, WORK, CARRY]], 2));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'creep1'], 1));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'creep2'], 2));
 		spawnAgency.process();
 
-		expect(spawnAgency.spawns.get('spawn1').requests.getFirst().task[0]).toBe('creep1');
-		expect(spawnAgency.spawns.get('spawn2').requests.getFirst().task[0]).toBe('creep2');
+		expect(spawnAgency.spawns.get('spawn1').requests.getFirst().task[1]).toBe('creep1');
+		expect(spawnAgency.spawns.get('spawn2').requests.getFirst().task[1]).toBe('creep2');
 	});
 
 	it('spawn1 receive first request, spawn1 (not 2) receive second - after complete', () => {
@@ -369,7 +370,7 @@ describe('processing scenarios', ()=> {
 		require('../room/room').init();
 
 		const spawnAgency = new SpawnAgency();
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['creep1', [MOVE, MOVE, WORK, CARRY]], 1));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'creep1'], 1));
 		spawnAgency.process();
 		doDefer = false;
 
@@ -377,10 +378,10 @@ describe('processing scenarios', ()=> {
 		spawnAgency.process();
 
 		const spawnAgency2 = new SpawnAgency();
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['creep2', [MOVE, MOVE, WORK]], 0.5));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK], 'creep2'], 0.5));
 		spawnAgency2.process();
 
-		expect(spawnAgency.spawns.get('spawn1').requests.getFirst().task[0]).toBe('creep2');
+		expect(spawnAgency.spawns.get('spawn1').requests.getFirst().task[1]).toBe('creep2');
 		expect(spawnAgency.spawns.get('spawn1').requests.length).toBe(1);
 		expect(spawnAgency.spawns.get('spawn2').requests.length).toBe(0);
 	});
@@ -392,14 +393,14 @@ describe('processing scenarios', ()=> {
 		const spawnAgency = new SpawnAgency();
 		doDefer = false;
 
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['creep1', [MOVE, MOVE, WORK, CARRY]], 1));
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['creep2', [MOVE, MOVE, WORK, CARRY]], 2));
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['creep3', [MOVE, MOVE, WORK, CARRY]], 3));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'creep1'], 1));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'creep2'], 2));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'creep3'], 3));
 		spawnAgency.process();
 		expect(spawnAgency.spawns.get('spawn1').requests.items.length).toEqual(2);
 
-		expect(spawnAgency.spawns.get('spawn1').requests.getFirst().task[0]).toBe('creep3');
-		expect(spawnAgency.spawns.get('spawn2').requests.getFirst().task[0]).toBe('creep2');
+		expect(spawnAgency.spawns.get('spawn1').requests.getFirst().task[1]).toBe('creep3');
+		expect(spawnAgency.spawns.get('spawn2').requests.getFirst().task[1]).toBe('creep2');
 		expect(spawnAgency.spawns.get('spawn1').requests.length).toBe(2);
 		expect(spawnAgency.spawns.get('spawn2').requests.length).toBe(1);
 	});
@@ -410,12 +411,12 @@ describe('processing scenarios', ()=> {
 		const spawnAgency = new SpawnAgency();
 		doDefer = false;
 
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['creep1', [MOVE, MOVE, WORK, CARRY]], 1));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'creep1'], 1));
 		spawnAgency.process();
 
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['creep2', [MOVE, MOVE, WORK, CARRY]], 2));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'creep2'], 2));
 
-		expect(spawnAgency.spawns.get('spawn1').requests.getFirst().task[0]).toBe('creep1');
+		expect(spawnAgency.spawns.get('spawn1').requests.getFirst().task[1]).toBe('creep1');
 		expect(spawnAgency.spawns.get('spawn1').requests.length).toBe(2);
 	});
 
@@ -425,11 +426,11 @@ describe('processing scenarios', ()=> {
 		const spawnAgency = new SpawnAgency();
 		doDefer = false;
 
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['creep1', [MOVE, MOVE, WORK, CARRY]], 1));
-		spawnAgency.requestAdd(spawnAgency.requestCheck(['creep2', [MOVE, MOVE, WORK, CARRY]], 2));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'creep1'], 1));
+		spawnAgency.requestAdd(spawnAgency.requestCheck([[MOVE, MOVE, WORK, CARRY], 'creep2'], 2));
 		spawnAgency.process();
 
-		expect(spawnAgency.spawns.get('spawn1').requests.getFirst().task[0]).toBe('creep2');
+		expect(spawnAgency.spawns.get('spawn1').requests.getFirst().task[1]).toBe('creep2');
 		expect(spawnAgency.spawns.get('spawn1').requests.length).toBe(2);
 	});
 });

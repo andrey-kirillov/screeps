@@ -1,8 +1,8 @@
-const g = require('../../g');
-const Room = require('../../room/room');
-const Mem = require('../../memory');
-const parts = require('./parts');
-const ProgressiveList = require('../../progressiveList');
+const g = require('g');
+const Room = require('room_room');
+const Mem = require('memory');
+const parts = require('agencies_spawn_parts');
+const ProgressiveList = require('progressiveList');
 
 class SpawnAgency {
 	constructor() {
