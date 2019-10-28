@@ -65,7 +65,7 @@ module.exports = {
 		if (memCmd[0] == 'help') {
 			console.log('{{example cmd}} Memory.cmd = "setSpawn;N7W3;0;21;23"');
 			console.log('');
-			console.log('log: [moduleName]');
+			console.log('log[;moduleName]');
 			console.log('clear');
 			console.log('setStore: room, x, y');
 			console.log('setSpawn: room, ind, x, y');

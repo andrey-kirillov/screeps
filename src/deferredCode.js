@@ -8,7 +8,10 @@ const calcSafeTime = time=>{
 const concernLength = 20;
 
 module.exports = {
-	defer: (callback, scope, pushOff=10, priorityChange=1) => {
+	defer: (callback, scope, pushOff=10) => {
+		if (!Array.isArray(scope))
+			throw new Error('Deferral scope is not an array: ' + JSON.stringify(scope));
+
 		let deferredList = Memory.deferredCodeList;
 		let deferral = deferredList.reduce((aggr, item) => {
 			return scope.length == item.scope.length && item.scope.reduce((aggr, s, i) => {
@@ -20,7 +23,7 @@ module.exports = {
 			let timeUsed = Game.cpu.getUsed();
 			let result = callback();
 			timeUsed = Game.cpu.getUsed() - timeUsed;
-			deferral = {scope, timeUsed, lastRun: Game.time, pushOff, origPushOff: pushOff, result, callback, priorityChange};
+			deferral = {scope, timeUsed, lastRun: Game.time, pushOff, origPushOff: pushOff, result, callback};
 			deferredList.push(deferral);
 		}
 		else {
@@ -31,12 +34,18 @@ module.exports = {
 		return deferral.result;
 	},
 	process: (multiplier=1)=>{
-		let list = Memory.deferredCodeList.sort((a, b)=>{
+		let list = Memory.deferredCodeList.filter(deferral => deferral.callback).sort((a, b)=>{
 			return a.pushOff - b.pushOff;
 		});
 
 		let hasTimeLeft = true;
 		for (let deferral of list) {
+			if (!deferral.callback) {
+				deferral.pushOff -= 1;
+				deferral.lastRun += 1;
+				continue;
+			}
+
 			let used = Game.cpu.getUsed();
 			hasTimeLeft &= ((Game.cpu.limit - used) * multiplier > calcSafeTime(deferral.timeUsed));
 
@@ -48,7 +57,7 @@ module.exports = {
 				deferral.pushOff = deferral.origPushOff;
 			}
 			else {
-				deferral.pushOff -= (deferral.priorityChange / Math.max(list.length-concernLength, 1));
+				deferral.pushOff -= 1;
 				deferral.lastRun += 1;
 			}
 			delete(deferral.callback);

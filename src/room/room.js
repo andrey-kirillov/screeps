@@ -43,8 +43,8 @@ class Room {
 			this.mem.timeVisibilityChanged = Game.time;
 		}
 
-		// if (!this.mem.sources)
-		// 	roomUtils.detectSources(this);
+		if (!this.mem.sources && this.mem.storePos)
+		 	roomUtils.detectSources(this);
 	}
 
 	setStorePos(x, y) {

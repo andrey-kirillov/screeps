@@ -5,6 +5,7 @@ const g = require('g');
 const util = require('util');
 //const IntelligenceAgency = require('agencies_intelligence_intelligenceAgency');
 const SpawnAgency = require('agencies_spawn_spawnAgency');
+const StartupAgency = require('agencies_startup_startupAgency');
 
 module.exports.loop = ()=> {
 	g.util = util;
@@ -17,8 +18,11 @@ module.exports.loop = ()=> {
 //		intelligence: new IntelligenceAgency(),
 		spawn: new SpawnAgency()
 	};
+	g.agencies.startup = new StartupAgency();
 
 	Cmd.startup();
+
+	g.agencies.startup.process();
 
 	DC.process();
 

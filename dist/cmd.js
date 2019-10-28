@@ -55,8 +55,8 @@ module.exports = {
 			Memory.temp = {};
 
 		let execOnce = 'notYetUsed';
-		if (execOnce != Memory.execOnce && Memory.execOnce) {
-			Memory.temp.provisional = g.agencies.spawn.requestCheck(['testCreep', [MOVE]], 1);
+		if (Memory.execOnce && execOnce != Memory.execOnce) {
+			Memory.temp.provisional = g.agencies.spawn.requestCheck([[MOVE], 'testCreep'+Math.random()], 1);
 			Memory.temp.id = g.agencies.spawn.requestAdd(Memory.temp.provisional);
 			console.log(Memory.temp.id);
 		}
@@ -65,7 +65,7 @@ module.exports = {
 		if (memCmd[0] == 'help') {
 			console.log('{{example cmd}} Memory.cmd = "setSpawn;N7W3;0;21;23"');
 			console.log('');
-			console.log('log: [moduleName]');
+			console.log('log[;moduleName]');
 			console.log('clear');
 			console.log('setStore: room, x, y');
 			console.log('setSpawn: room, ind, x, y');

@@ -9,6 +9,9 @@ const concernLength = 20;
 
 module.exports = {
 	defer: (callback, scope, pushOff=10, priorityChange=1) => {
+		if (!Array.isArray(scope))
+			throw new Error('Deferral scope is not an array: ' + JSON.stringify(scope));
+
 		let deferredList = Memory.deferredCodeList;
 		let deferral = deferredList.reduce((aggr, item) => {
 			return scope.length == item.scope.length && item.scope.reduce((aggr, s, i) => {
@@ -31,7 +34,7 @@ module.exports = {
 		return deferral.result;
 	},
 	process: (multiplier=1)=>{
-		let list = Memory.deferredCodeList.sort((a, b)=>{
+		let list = Memory.deferredCodeList.filter(deferral => deferral.callback).sort((a, b)=>{
 			return a.pushOff - b.pushOff;
 		});
 

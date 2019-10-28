@@ -101,9 +101,7 @@ class SpawnAgency {
 			return aggr === null || comp ? {spawnId: spawn.id, ind, time, cost, priority, task} : aggr;
 		}, null);
 
-		bestChoice.time = parts.timeCalc(task[0]);
-
-		return bestChoice;
+		return {...bestChoice, leadTime: bestChoice.time, time: parts.timeCalc(task[0])};
 	}
 
 	// commits a provisional request signature to an actual request
@@ -136,6 +134,11 @@ class SpawnAgency {
 			};
 
 		const spawn = this.spawns.get(request.spawnId);
+		if (!spawn.requests.has(id)) {
+			this.requests.delete(id);
+			console.log('SpawnAgency: had to delete request that spawn.request was not aware of: '+id);
+			return {status: this.constructor.requestStatuses.NOT_FOUND};
+		}
 
 		if (spawn.handlingRequestId !== id)
 			return {
@@ -145,7 +148,7 @@ class SpawnAgency {
 		else
 			return {
 				status: this.constructor.requestStatuses.SPAWNING,
-				timeRemaining: spawn.spawn.isSpawning.remainingTime
+				timeRemaining: spawn.spawn.spawning ? spawn.spawn.spawning.remainingTime : 0
 			};
 	}
 
@@ -159,8 +162,8 @@ class SpawnAgency {
 		if (!force)
 			spawn.requests.deleteByKey(id);
 
-		if (spawn.handlingRequestId === id && spawn.spawn.isSpawning)
-			spawn.spawn.isSpawning.cancel();
+		if (spawn.handlingRequestId === id && spawn.spawn.spawning)
+			spawn.spawn.spawning.cancel();
 
 		return true;
 	}
@@ -168,15 +171,19 @@ class SpawnAgency {
 	process() {
 		[...this.spawns.values()].forEach(spawn => {
 			// requests that have been completed
-			if (spawn.handlingRequestId && !spawn.spawn.isSpawning) {
-				this.requests.get(spawn.handlingRequestId).creepId = Game.creeps[spawn.newCreepName].id;
-				spawn.handlingRequestId = null;
+			if (spawn.handlingRequestId && !spawn.spawn.spawning) {
+				if (!Game.creeps[spawn.newCreepName])
+					console.log('spawnAgency: Creep went missing upon completion: '+spawn.newCreepName);
+				else
+					this.requests.get(spawn.handlingRequestId).creepId = Game.creeps[spawn.newCreepName].id;
+
 				spawn.newCreepName = null;
-				spawn.requests.delete(0);
+				spawn.requests.deleteByKey(spawn.handlingRequestId);
+				spawn.handlingRequestId = null;
 			}
 
 			const spawnRequest = spawn.requests.getFirst();
-			if (!spawn.spawn.isSpawning && spawnRequest) {
+			if (!spawn.spawn.spawning && spawnRequest) {
 				const request = this.requests.get(spawnRequest.id);
 				const res = spawn.spawn.spawnCreep(...spawnRequest.task);
 
@@ -185,9 +192,9 @@ class SpawnAgency {
 					spawn.handlingRequestId = request.id;
 				}
 				else if(res !== ERR_NOT_ENOUGH_ENERGY) {
-					console.log(JSON.stringify([res, ...spawnRequest.task]));
+					console.log('error attempting to spawn: '+JSON.stringify([res, ...spawnRequest.task]));
 					this.requests.delete(spawnRequest.id);
-					spawn.requests.delete(0);
+					spawn.requests.deleteByKey(spawnRequest.id);
 				}
 			}
 		});

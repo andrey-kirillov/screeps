@@ -21,7 +21,16 @@ const dirs8forEach = (callback, x=0, y=0, limiter=50)=>{
 	});
 };
 
+const movementCosts = [1, 0, 5];
+
+const moveCostBetween = (pathFinder, terrain=null) => {
+	const node = pathFinder.path[pathFinder.path.length - 1];
+	terrain = terrain || new Room.Terrain(node.roomName);
+	return pathFinder.cost - movementCosts[terrain.get(node.x, node.y)];
+};
+
 module.exports = {
 	dirs8forEach,
-	posInBounds
+	posInBounds,
+	moveCostBetween,
 };

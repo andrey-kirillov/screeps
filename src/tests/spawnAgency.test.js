@@ -38,20 +38,20 @@ const createMockRoom = (name, energyCapacityAvailable=550, controllerLevel=3) =>
 	return global.Game.rooms[name];
 };
 
-const createMockSpawn = (id, roomName, isSpawning=false, isActive=true) => {
-	const _isSpawning = {
+const createMockSpawn = (id, roomName, spawning=false, isActive=true) => {
+	const _spawning = {
 		cancel: () => {
-			idList[id].isSpawning = null;
+			idList[id].spawning = null;
 		},
 		needTime: 10,
 		remainingTime: 5,
 		_complete: ()=>{
 			const creepId = Math.random().toString().substr(2, 16);
-			const creep = {id: creepId, name: idList[id].isSpawning._creepName};
+			const creep = {id: creepId, name: idList[id].spawning._creepName};
 
-			Game.creeps[idList[id].isSpawning._creepName] = creep;
+			Game.creeps[idList[id].spawning._creepName] = creep;
 			idList[creepId] = creep;
-			idList[id].isSpawning = null;
+			idList[id].spawning = null;
 		}
 	};
 
@@ -61,13 +61,13 @@ const createMockSpawn = (id, roomName, isSpawning=false, isActive=true) => {
 	idList[id] = {
 		id,
 		isActive,
-		isSpawning: isSpawning ? _isSpawning : null,
+		spawning: spawning ? _spawning : null,
 		room: global.Game.rooms[roomName],
 		spawnCreep: (parts, name, memory={}) => {
-			if (idList[id].isSpawning)
+			if (idList[id].spawning)
 				return ERR_BUSY;
 
-			idList[id].isSpawning = {..._isSpawning, _creepName: name};
+			idList[id].spawning = {..._spawning, _creepName: name};
 
 			return OK;
 		}
@@ -151,7 +151,8 @@ describe('fresh requests', ()=> {
 				priority: 1,
 				spawnId: 'testSpawn',
 				task,
-				time: 12
+				time: 12,
+				leadTime: 0
 			});
 	});
 
@@ -231,7 +232,7 @@ describe('processing basics', ()=> {
 		expect(spawnAgency.requests.size).toBe(1);
 		const spawn = spawnAgency.spawns.get('testSpawn');
 
-		expect(spawn.spawn.isSpawning).not.toBe(null);
+		expect(spawn.spawn.spawning).not.toBe(null);
 		expect(spawn.newCreepName).toBe('testCreep');
 		expect(spawn.handlingRequestId).toBe(id);
 
@@ -261,7 +262,7 @@ describe('processing basics', ()=> {
 
 		doDefer = false;
 		const spawnAgency2 = new SpawnAgency();
-		spawn.isSpawning._complete();
+		spawn.spawning._complete();
 		spawnAgency2.process();
 
 		const res = spawnAgency2.requestStatus(id);
@@ -374,7 +375,7 @@ describe('processing scenarios', ()=> {
 		spawnAgency.process();
 		doDefer = false;
 
-		spawn1.isSpawning._complete();
+		spawn1.spawning._complete();
 		spawnAgency.process();
 
 		const spawnAgency2 = new SpawnAgency();

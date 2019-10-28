@@ -23,7 +23,7 @@ var rmDir = function(dirPath, removeSelf) {
 	if (removeSelf)
 		fs.rmdirSync(dirPath);
 };
-rmDir(dest, false);
+//rmDir(dest, false);
 rmDir(final, false);
 
 processDir([]);
@@ -53,7 +53,7 @@ function processDir(dirs) {
 
 				return "require('"+newDirs.join('_')+"')";
 			});
-			fs.writeFileSync(dest + '/' + dirs.join('_') + (dirs.length?'_':'') + file, content);
+			//fs.writeFileSync(dest + '/' + dirs.join('_') + (dirs.length?'_':'') + file, content);
 			fs.writeFileSync(final + '/' + dirs.join('_') + (dirs.length?'_':'') + file, content);
 		}
 	});

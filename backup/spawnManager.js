@@ -6,7 +6,7 @@ class SpawnManager {
 		this.logging = logging;
 
 		if (!Memory.spawnManager) {
-			Memory.spawnManager = {que: [], rooms: {}, isSpawning: []};
+			Memory.spawnManager = {que: [], rooms: {}, spawning: []};
 
 			this.mem = Memory.spawnManager;
 			this._roomCheck();
