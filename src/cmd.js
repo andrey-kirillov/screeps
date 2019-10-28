@@ -1,6 +1,6 @@
-const Room = require('./room/room');
-const Mem = require('./memory');
-const g = require('./g');
+const Room = require('room_room');
+const Mem = require('memory');
+const g = require('g');
 
 let memCmd;
 
@@ -29,6 +29,14 @@ const testNums = nums=>{
 	return true;
 };
 
+const testDir4 = dir4=>{
+	if (!['NW', 'SW', 'SE', 'NE'].includes(dir4)) {
+		logError(`Invalid parameters`);
+		return false;
+	}
+	return true;
+};
+
 const testLength = len=>{
 	if (len != memCmd.length-1) {
 		logError(`Invalid parameter count`);
@@ -37,9 +45,19 @@ const testLength = len=>{
 	return true;
 };
 
-const testPairs = (count, pairs)=>{
+const testMaxLength = len=>{
+	if (len < memCmd.length-1) {
+		logError(`Too many parameters`);
+		return false;
+	}
+	return true;
+};
+
+const testPairs = (count, pairs, allowNone=false)=>{
+	if (!pairs.length && allowNone)
+		return true;
 	if(!(pairs.length % count)) {
-		logError(`Invalid parameter count`);
+		logError(`Invalid pair count`);
 		return false;
 	}
 	return true;
@@ -68,6 +86,7 @@ module.exports = {
 			console.log('log[;moduleName]');
 			console.log('clear');
 			console.log('setStore: room, x, y');
+			console.log('setBase: room, spawnDir[, x, y]');
 			console.log('setSpawn: room, ind, x, y');
 			console.log('setExtPath: room, ind, x, y, ...nodes(x, y)');
 		}
@@ -94,8 +113,17 @@ module.exports = {
 				break;
 
 			case 'setSpawn':
-				if ((room = getRoom()) && testNums(memCmd.slice(2)) && testLength(4)) {
+				if ((room = getRoom()) && testDir4(memCmd.slice(2)) && testLength(4)) {
 					if (room.setSpawnPos(memCmd[2]/1, memCmd[3]/1, memCmd[4]/1))
+						logSuccess();
+					else
+						logError('Call failed');
+				}
+				break;
+
+			case 'setBase':
+				if ((room = getRoom()) && testDir4(memCmd[2]) && testPairs(2, memCmd.slice(3), true) && testMaxLength(4)) {
+					if(room.setBase(...memCmd.slice(2)))
 						logSuccess();
 					else
 						logError('Call failed');

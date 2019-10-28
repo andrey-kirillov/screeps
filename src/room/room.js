@@ -47,6 +47,43 @@ class Room {
 		 	roomUtils.detectSources(this);
 	}
 
+	setBase(compassDir, x, y) {
+		let spawnX;
+		let spawnY;
+
+		if (x) {
+			spawnX = x;
+			spawnY = y;
+		}
+		else {
+			let spawn = this._room.find(FIND_MY_SPAWNS);
+			if (!spawn.length)
+				return false;
+			spawnX = spawn.pos.x;
+			spawnY = spawn.pos.y;
+		}
+
+		if (!spatialUtils.posInBounds(spawnX, spawnY))
+			return false;
+
+		const storeOff = spatialUtils.compassToDir(compassDir, -2);
+		if (!spatialUtils.posInBounds(spawnX + storeOff[0], spawnY + storeOff[1]))
+			return false;
+
+
+		this.setSpawnPos(0, spawnX, spawnY);
+
+		const storeHOff = spatialUtils.compassToDir(compassDir, -1);
+		const storeHPos = {x: spawnX + storeHOff[0], y: spawnY + storeHOff[1]};
+
+		this.setSpawnPos(1, storeHPos.x, spawnY);
+		this.setSpawnPos(2, spawnX, storeHPos.y);
+
+		this.setStorePos(spawnX + storeOff[0], spawnY + storeOff[1]);
+
+		return true;
+	}
+
 	setStorePos(x, y) {
 		if (!spatialUtils.posInBounds(x, y))
 			return false;
