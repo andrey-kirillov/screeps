@@ -19,6 +19,8 @@ class Roster {
 			// remove dead and forgotten creeps from list
 			this.removeDead();
 
+			const prevActiveCreepsCount = this.creepsList.list.filter(creep => !creep.isReplaced);
+
 			const activeCreepsCount = this.creepsList.list.filter(creep => {
 				// filtering out creeps that have already been replaced
 				if (creep.isReplaced)
@@ -28,7 +30,7 @@ class Roster {
 					this.processReplacementCreep(creep);
 
 				// for those that aren't being replaced, check if they need it
-				if (!creep.replacement)
+				if (!creep.replacement && prevActiveCreepsCount < this.creepCountReq)
 					this.creepNeedsReplacementCheck(creep, this.priority);
 
 				// all other creeps count
@@ -36,10 +38,12 @@ class Roster {
 			}).length;
 
 			// fill any missing slots (not replacements)
-			this.fillMissingCreeps(activeCreepsCount);
+			this.fillMissingCreeps(activeCreepsCount + this.creepsList.newHires.length);
 
 			// process new hires (not replacements)
-			this.creepsList.newHires = this.creepsList.newHires.filter(this.processNewHire.bind(this));
+			this.creepsList.newHires = this.creepsList.newHires.filter((request, ind)=>{
+				return this.processNewHire(request, ind >= this.creepCountReq - activeCreepsCount);
+			});
 		}, ['roster_'+this.name], this.checkInterval);
 	}
 
@@ -58,9 +62,6 @@ class Roster {
 			case g.agencies.spawn.constructor.requestStatuses.NOT_FOUND:
 				creep.replacement = null;
 				break;
-			case g.agencies.spawn.constructor.requestStatuses.WAITING:
-				// todo: updates?
-				break;
 			// setup ready replacement
 			case g.agencies.spawn.constructor.requestStatuses.COMPLETED:
 				this.creepsList.list.push({
@@ -70,6 +71,11 @@ class Roster {
 				});
 				creep.isReplaced = true;
 				break;
+			default:
+				if (!this.creepCountReq) {
+					g.agencies.spawn.requestCancel(creep.replacement);
+					creep.replacement = null;
+				}
 		}
 	}
 
@@ -80,16 +86,19 @@ class Roster {
 		const timeSpare = ticksToLive - timeNeeded;
 		const provisional = g.agencies.spawn.requestCheck(this.creationCallback(), priority - (timeSpare / 100));
 
-		if (provisional.leadTime + timeNeeded > (ticksToLive / this.lenience))
+		if (this.creepCountReq && provisional.leadTime + timeNeeded > (ticksToLive / this.lenience))
 			creep.replacement = g.agencies.spawn.requestAdd(provisional);
 	}
 
 	fillMissingCreeps(activeCreepsCount, priority) {
+		if (!this.creepCountReq)
+			return;
+
 		for (let n=activeCreepsCount+this.creepsList.newHires.length; n<this.creepCountReq; n++)
 			this.creepsList.newHires.push(g.agencies.spawn.requestAdd(g.agencies.spawn.requestCheck(this.creationCallback(), priority)));
 	}
 
-	processNewHire(requestId) {
+	processNewHire(requestId, isOverLimit=false) {
 		const status = g.agencies.spawn.requestStatus(requestId);
 
 		if (status.status === g.agencies.spawn.constructor.requestStatuses.NOT_FOUND)
@@ -100,6 +109,10 @@ class Roster {
 				replacement: null,
 				isReplaced: false
 			});
+			return false;
+		}
+		else if (isOverLimit) {
+			g.agencies.spawn.requestCancel(requestId);
 			return false;
 		}
 

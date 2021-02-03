@@ -3,9 +3,9 @@ const gruntAInfo = {
 	avgMoveSpeed: 1,
 	capacity: 50,
 	timeToFill: 50 / 2,
-	cost: 250,
-	costPerCycle: 0.166667,
-	buildTime: 12
+	cost: 300,
+	costPerCycle: 0.2,
+	buildTime: 16
 };
 
 const gruntBInfo = {
@@ -22,9 +22,8 @@ const gruntBInfo = {
 
 const gruntACountNeededToMineSource = (source) => {
 	return Math.ceil(source.miningPositions.reduce((aggr, miningPosition) => {
-		const gruntMinePerTick = ((miningPosition.pathCost * 2) + gruntAInfo.timeToFill) / 50;
-		return aggr + (gruntAInfo.mineSpeed / gruntMinePerTick);
-	}, 0));
+		return aggr + (gruntAInfo.timeToFill + 1 + 2 + miningPosition.pathCost * 2) / gruntAInfo.timeToFill;
+	}, 2));
 };
 const gruntALeadTIme = (source) => {
 	return source.miningPositions[0].pathCost * gruntAInfo.avgMoveSpeed + gruntAInfo.buildTime;

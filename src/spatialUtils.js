@@ -11,6 +11,14 @@ const compassToDirs = {
 	W: [-1, 0]
 };
 
+const clamp = (val, limit)=>{
+	if (val >= limit)
+		return val % limit;
+	else if (val < 0)
+		return limit - (Math.abs(val) % limit);
+	return val;
+};
+
 const posInBounds = (x, y, limiter=50)=>{
 	return x >= 0 && y >= 0 && x < limiter && y < limiter;
 };
@@ -31,6 +39,41 @@ const dirs8forEach = (callback, x=0, y=0, limiter=50)=>{
 	});
 };
 
+const spiral = function*(x, y, radius=0, face=0, delta=0) {
+	let forward = clamp(face*2 + 3, 8);
+	let sx = x + (dirs8[face*2][0]*radius) + (dirs8[forward][0]*delta);
+	let sy = y + (dirs8[face*2][1]*radius) + (dirs8[forward][1]*delta);
+	yield {x: sx, y: sy, radius, face, delta};
+
+	if (!radius)
+		face = 3;
+
+	let limit = 100;
+	while (limit) {
+		limit--;
+		delta++;
+		if (delta >= radius*2) {
+			delta = 0;
+			face++;
+			if (face >= 4) {
+				radius++;
+				face = 0;
+			}
+		}
+
+		let forward = clamp(face*2 + 3, 8);
+		let sx = x + (dirs8[face*2][0]*radius) + (dirs8[forward][0]*delta);
+		let sy = y + (dirs8[face*2][1]*radius) + (dirs8[forward][1]*delta);
+
+		if (posInBounds(sx, sy)) {
+			limit = 100;
+			yield {x: sx, y: sy, radius, face, delta};
+		}
+	}
+
+	return null;
+};
+
 const movementCosts = [1, 0, 5];
 
 const moveCostBetween = (pathFinder, terrain=null) => {
@@ -46,6 +89,7 @@ const compassToDir = (compassDir, multiply=1) =>{
 module.exports = {
 	dirs8forEach,
 	compassToDir,
+	spiral,
 	posInBounds,
 	moveCostBetween,
 };

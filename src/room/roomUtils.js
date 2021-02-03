@@ -19,7 +19,7 @@ const detectSources = room => {
 
 		spatialUtils.dirs8forEach((x, y)=>{
 			let tile = terrain.get(x, y);
-			if (tile != TERRAIN_MASK_WALL) {
+			if (tile !== TERRAIN_MASK_WALL) {
 				const miningPosition = {x, y, tile};
 				const path = PathFinder.search(storePos, new RoomPosition(miningPosition.x, miningPosition.y, room.name));
 				miningPosition.pathNodes = path.path.slice(0, path.path.length - 1).map(node => ({x: node.x, y: node.y}));

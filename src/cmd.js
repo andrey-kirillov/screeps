@@ -13,7 +13,13 @@ const logError = msg=>{
 
 const getRoom = roomName=>{
 	roomName = roomName || memCmd[1];
-	let room = Room.find(roomName);
+
+	let room;
+	if (!roomName)
+		room = Room.all()[0];
+	else
+		room = Room.find(roomName);
+
 	if (!room)
 		logError(`Could not find room: ${roomName}`);
 	return room;
@@ -83,11 +89,12 @@ module.exports = {
 		if (memCmd[0] == 'help') {
 			console.log('{{example cmd}} Memory.cmd = "setSpawn;N7W3;0;21;23"');
 			console.log('');
+			console.log('any command can leave room as \'\' to use first room');
+			console.log('');
 			console.log('log[;moduleName]');
 			console.log('clear');
-			console.log('setStore: room, x, y');
+			console.log('setRally: room, x, y');
 			console.log('setBase: room, spawnDir[, x, y]');
-			console.log('setSpawn: room, ind, x, y');
 			console.log('setExtPath: room, ind, x, y, ...nodes(x, y)');
 		}
 
@@ -103,21 +110,12 @@ module.exports = {
 				logSuccess();
 				break;
 
-			case 'setStore':
+			case 'setRally':
 				if ((room = getRoom()) && testNums(memCmd.slice(2)) && testLength(3)) {
-					if (room.setStorePos(memCmd[2]/1, memCmd[3]/1))
+					if (room.setRallyPos(memCmd[2]/1, memCmd[3]/1))
 						logSuccess();
 					else
 						logError('Call failed')
-				}
-				break;
-
-			case 'setSpawn':
-				if ((room = getRoom()) && testDir4(memCmd.slice(2)) && testLength(4)) {
-					if (room.setSpawnPos(memCmd[2]/1, memCmd[3]/1, memCmd[4]/1))
-						logSuccess();
-					else
-						logError('Call failed');
 				}
 				break;
 

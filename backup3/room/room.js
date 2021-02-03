@@ -110,7 +110,7 @@ class Room {
 					rooms = rooms.filter(typeof filter == 'string' ? roomFilters[filter] : filter);
 				return rooms;
 			},
-			filter,
+			[filter],
 			true
 		);
 	}

@@ -52,15 +52,15 @@ class Room {
 		let spawnY;
 
 		if (x) {
-			spawnX = x;
-			spawnY = y;
+			spawnX = x/1;
+			spawnY = y/1;
 		}
 		else {
 			let spawn = this._room.find(FIND_MY_SPAWNS);
 			if (!spawn.length)
 				return false;
-			spawnX = spawn.pos.x;
-			spawnY = spawn.pos.y;
+			spawnX = spawn[0].pos.x;
+			spawnY = spawn[0].pos.y;
 		}
 
 		if (!spatialUtils.posInBounds(spawnX, spawnY))
@@ -70,6 +70,11 @@ class Room {
 		if (!spatialUtils.posInBounds(spawnX + storeOff[0], spawnY + storeOff[1]))
 			return false;
 
+		const decommissionPos = spatialUtils.compassToDir(compassDir);
+		if (!spatialUtils.posInBounds(spawnX + decommissionPos[0], spawnY + decommissionPos[1]))
+			return false;
+
+		this.setDecommissionPos(spawnX + decommissionPos[0], spawnY + decommissionPos[1]);
 
 		this.setSpawnPos(0, spawnX, spawnY);
 
@@ -84,11 +89,27 @@ class Room {
 		return true;
 	}
 
+	setRallyPos(x, y) {
+		if (!spatialUtils.posInBounds(x, y))
+			return false;
+
+		this.mem.rallyPos = {x, y, radius: 0, face: 0, delta: 0, isOdd: (x+y) % 2 , nodes: []};
+		return true;
+	}
+
 	setStorePos(x, y) {
 		if (!spatialUtils.posInBounds(x, y))
 			return false;
 
 		this.mem.storePos = {x, y};
+		return true;
+	}
+
+	setDecommissionPos(x, y) {
+		if (!spatialUtils.posInBounds(x, y))
+			return false;
+
+		this.mem.decommissionPos = {x, y};
 		return true;
 	}
 
@@ -149,7 +170,7 @@ class Room {
 					rooms = rooms.filter(typeof filter == 'string' ? roomFilters[filter] : filter);
 				return rooms;
 			},
-			filter,
+			[filter],
 			true
 		);
 	}

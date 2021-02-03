@@ -164,6 +164,7 @@ class SpawnAgency {
 
 		if (spawn.handlingRequestId === id && spawn.spawn.spawning)
 			spawn.spawn.spawning.cancel();
+		spawn.handlingRequestId = null;
 
 		return true;
 	}

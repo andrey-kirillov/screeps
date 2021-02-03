@@ -43,10 +43,7 @@ class StartupAgency {
 				gruntBLeadTIme: startupUtils.gruntBLeadTIme(source),
 				gruntBRoster: Roster.creepsListHolder(),
 			}));
-			this.phaseData.gruntAMinerNeeded = this.phaseData.sources.reduce((aggr, data) => aggr + data.gruntANeeded, 0);
 			this.phaseData.gruntBMinerNeeded = this.phaseData.sources.reduce((aggr, data) => aggr + data.gruntBNeeded, 0);
-			this.phaseData.gruntACount = 0;
-			this.phaseData.gruntBCount = 0;
 		}
 	}
 

@@ -8,6 +8,9 @@ const SpawnAgency = require('./agencies/spawn/spawnAgency');
 const StartupAgency = require('./agencies/startup/startupAgency');
 
 module.exports.loop = ()=> {
+	if (Memory.pause)
+		return;
+
 	g.util = util;
 	g.DC = DC;
 	g.defer = DC.defer;
